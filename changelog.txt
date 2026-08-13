@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 3.7.1
+Date: 2026-08-12
+  Bugfixes:
+    - Excluded factorissimo internal packed-state items from replication:
+      factory-1/2/3-instantiated and space-factory-1/2/3-instantiated (the
+      mined/packed form of factory entities). They leaked past the eligibility
+      rule because Space Age auto-generates <name>-recycling recipes that
+      produce them, and their locale key (entity-name.<name>) does not exist —
+      producing "Unknown key: entity-name.space-factory-X-instantiated"
+      runtime warnings. New "-instantiated" name pattern in the step filter
+      (same internal-item class as parameter-N). Test: test_step_filter 29/29.
+
+---------------------------------------------------------------------------------------------------
 Version: 3.7.0
 Date: 2026-08-11
   Features:

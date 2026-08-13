@@ -76,6 +76,14 @@ local STEP_NAME_PATTERNS = {
     "roboport%-door%-",
     "%-grinding%-wheel$",      -- gem-processing consumables
     "%-polishing%-wheel$",
+    -- v3.7.1: "-instantiated" items (factorissimo factory-1-instantiated,
+    -- space-factory-1-instantiated...). These are INTERNAL packed-state items
+    -- (the entity's mined form, item-with-tags with indirect localised_name).
+    -- They leak past the eligibility rule because Space Age auto-generates
+    -- <name>-recycling recipes that PRODUCE them → is_produced_by_recipe=true.
+    -- Their locale key (entity-name.<name>) does not exist → "unknown key"
+    -- runtime warnings. Same internal-item class as parameter-N.
+    "%-instantiated$",
 }
 local function is_step_by_name(name)
     for _, pat in ipairs(STEP_NAME_PATTERNS) do

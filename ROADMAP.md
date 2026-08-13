@@ -1,7 +1,7 @@
 # DMR — Roadmap
 
 _Estado del fork: Post 3.0 (Jaer985) — Base: Factorio 2.0+ con soporte Space Age_
-_Última versión publicada: 3.7.0 (2026-08-13) — robustez de balance multi-mod (A1-A6, B1-B5, C1, D1-D3)_
+_Última versión publicada: 3.7.1 (2026-08-12) — robustez de balance multi-mod (A1-A6, B1-B5, C1, D1-D3) + hotfix factorissimo_
 
 > El antiguo `roadmap.txt` del upstream (nihilistzsche / Honktown) está congelado en la era 0.17/0.18 y ya no aplica. Este documento es la fuente viva de planes para el fork moderno.
 
