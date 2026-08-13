@@ -1,4 +1,759 @@
 ---------------------------------------------------------------------------------------------------
+Version: 3.7.0
+Date: 2026-08-11
+  Features:
+    - Dynamic generation moved to data-final-fixes (A6, root-cause fix): the
+      generator previously ran in data-updates, BEFORE overhaul mods (Bob's,
+      Angel's, K2) define their recipes and unlock-recipe effects. The dump
+      audit proved the consequences: 118 items missing their original-tech
+      prereq AND 367 items under-tiered (bob-destroyer-robot assigned 1, real
+      5; solar-panel assigned 1, real 4; fast-inserter assigned 1, real 4).
+      generate() now runs in data-final-fixes PASS 0, after all mods' data —
+      tiers and prereqs are computed from complete data. Requires the A5
+      optional dependencies to order DMR's data-final-fixes after Bob's.
+    - Individual gem ores tiered (B5): bob-amethyst/diamond/emerald/ruby/
+      sapphire/topaz-ore now map to tier 5 (the "gem" pattern didn't match
+      them; they fell to the tier-1 fallback — dump-verified assigned 1).
+    - Re-attach original unlock-tech prereqs (A4): the dynamic generator ran in
+      data-updates, BEFORE overhaul mods (Bob's, Angel's, K2) define their
+      unlock-recipe effects. With Bob's, 118 items (bob-brass-chest, defender/
+      destroyer/distractor robots, distillery, enriched fuel, mech parts, solar
+      panels...) got replication techs whose ONLY prereq was the replicator tier
+      — the original research was silently skipped, letting players replicate
+      mid/endgame items from the tier-1 replicator. New data-final-fixes PASS 6
+      rebuilds the tech map from the FINAL data and re-attaches the missing
+      original tech as a prereq. Verified against the real dump: 118 re-attached,
+      0 self-prereq cycles. (Now a safety net — A6 fixes the root cause.)
+    - Optional dependencies on Bob's mods (A5): info.json now declares
+      ? bobplates / bobassembly / boblogistics / bobtech / bobmodules / bobpower /
+      bobwarfare / bobores / bobmining / bobelectronics / bobequipment /
+      bobvehicleequipment / bobinserters / bobenemies / boblibrary so DMR's
+      data-final-fixes runs AFTER theirs (same load-order pattern as moon-eneas).
+    - Combat/mech step filter (B4): bob-robot-brain-combat*, bob-robot-tool-
+      combat*, bob-mech-brain/leg/leg-segment/frame/hip/knee/foot/armor-plate,
+      and parametrized-recipe placeholder items (parameter-N) are no longer
+      replication targets.
+    - Anti-overpowered ore tiering for overhaul mods (A1): dynamically-discovered
+      minable resources (Bob's, Angel's, K2 ores) are now mapped by material
+      progression instead of all falling to tier 1. Tin/lead/zinc/nickel/silver/
+      quartz/graphite/sulfur → tier 2, bauxite/rutile/cobalt/chrome/manganese →
+      tier 3, gold/thorium/tungsten/titanium/platinum → tier 4, gems/iridium/
+      osmium/neodymium → tier 5. Cost scales with tier (tier^1.5), so deep-tier
+      ores are never cheap to replicate.
+    - Extended military-advanced classification (A2): Bob's/mod endgame weapons
+      now land in the tier-5 military-advanced category instead of tier-3
+      military — sniper/laser rifles, gatling, plasma weapons, tiered turrets
+      (turret-3+), power armor mk3+ / mech parts, tank upgrades.
+    - Machine efficiency for overhaul-mod categories (A3): explicit entries for
+      Bob's assembling-1..6, chemical/mixing furnaces, electrolysis, distillery,
+      air pump, petrochem, electronics + substring fallback (smelt→1/3, chem→56/90,
+      electro/centri→140/81, distill/refin/petro/oil→14/9, assembl/craft→56/90).
+      Mod recipes no longer fall to the neutral 1.0 efficiency.
+    - Fluid eligibility + step filter (B1): fluids now follow the same rules as
+      items — step intermediates (Angel's petrochem gas/liquid) and phantom
+      fluids (no producing recipe, not minable, not a known resource) are no
+      longer replication targets.
+    - Overhaul-mod auto-detection (C1): with Bob's/Angel's/K2 active, the
+      default grouped-tech cost multiplier rises 10.0 → 15.0 automatically
+      (zero-config, still overridable in options).
+    - Research difficulty — single source of truth + Very Hard (D1): the
+      difficulty setting now drives ALL THREE axes from one table so they
+      always match. Easy (Fast): 25 count / 5s time / 600s cap (historical,
+      reads replresearch-* player settings). Medium: 50 / 15s / 1000s. High:
+      100 / 30s / 1800s. Very Hard (NEW difficulty): 200 / 45s / 3200s. The
+      old hard 600s recipe-time cap now scales with difficulty.
+    - Description refresh (D2): corrected 4 descriptions that contradicted
+      the actual behavior — dmrsa-replication-3 / dmrsa-replicator-3 (tier 3
+      is available BEFORE the planets in SA, not gated by them),
+      replication-penalty (it's a multiplier ×(1+penalty), not an additive
+      value), replresearch-item-multiplier (removed stale upstream text).
+      Modernized the lore for the dark-matter scoop / transducer / matter
+      conduit and polished replresearch-space-lock. EN + ES parity verified.
+      Final pass (D2b): the lore was trimmed to functional one-liners
+      (<130 chars) — the long narrative paragraphs from the original fork
+      conflicted with the mod's current scope and tone.
+    - Atmospheric lore rewrite (D3): user asked for NEW lore instead of
+      bare one-liners. All item/entity/tech descriptions now tell a coherent
+      story — tenemut discovered on a remote world, the scoop as the first
+      machine to touch the void, the transducer giving matter intent, the
+      conduit building at the nanometer scale, planetary replicators tuned
+      to each world's nature (geothermal heart, electromagnetic storms,
+      biological freshness, absolute cold). Numbers preserved (3x/5x speeds
+      verified against prototypes). EN + ES parity 0 missing keys.
+  Bugfixes:
+    - bob-advanced-logistic-science-pack was forced to tier 1 by the science
+      tier override (pattern "logistic" matched "advanced-logistic"). Now
+      matches advanced-logistic first → tier 3. Found via dump log evidence:
+      "Science tier force bob-advanced-logistic-science-pack: cost-solver=3 -> 1".
+
+---------------------------------------------------------------------------------------------------
+Version: 3.6.4
+Date: 2026-08-11
+  Changes:
+    - Auto-hide empty replication category subgroups (data-final-fixes PASS 5):
+      if a replication category ends up with zero generated recipes (all its
+      items step-filtered, or nothing in the modlist for that category), its
+      item-subgroup is removed so the replicator crafting menu shows no empty
+      tabs. Zero configuration; the tier fallback subgroups are never removed.
+    - Eligibility rule in target-mapper: an item is only replicable if it can
+      be OBTAINED legitimately — produced by a recipe, minable (data.raw.
+      resource), or explicitly whitelisted (asteroid chunks, alien artifacts,
+      SA plants). Phantom/spawn-only items (no producing recipe, not minable,
+      not whitelisted) no longer generate research — this eliminates junk
+      techs from mod internals (factorissimo factory-*), drop-only items, and
+      future mods' phantom items without per-mod lists. Whitelist is additive
+      for legitimate no-recipe items.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.6.3
+Date: 2026-08-11
+  Changes:
+    - New hybrid "step item" filter in target-mapper: intermediate items that
+      are not worth replicating are now excluded from the replication lists.
+      LEVEL 1: name patterns (%-bearing%-ball, %-projectile, %-warhead,
+      roboport%-antenna/chargepad/door, %-grinding%-wheel, %-polishing%-wheel).
+      LEVEL 2: explicit exclusion list based on the upstream fork's replvar
+      calls (bearing balls, gem-processing consumables, internal projectiles/
+      warheads, roboport parts, robot sub-parts, small alien artifacts, module
+      processor components). With Bob's/Angel's/K2, the replication lists were
+      polluted with hundreds of one-step intermediates that only feed one more
+      recipe — now they stay out, keeping tiers and tech trees meaningful.
+      Full upstream replvar sweep (19 replications/*.lua files) added:
+      Bob's base bullets (bob-bullet, bob-ap-bullet, ...), silicon-carbide,
+      long-handed-inserter, and Angel's petrochem intermediates
+      (gas-*, liquid-nitric-acid, solid-sodium-* — 14 items).
+    - replication-2 now uses automation + logistic science packs ONLY (was
+      including chemical-science-pack). Progression: chemical is tier 3, so
+      the tier-2 replicator should not demand it.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.6.2
+Date: 2026-08-11
+  Bugfixes:
+    - Fixed "Unknown key: mod-setting-name.replication-penalty" in the mod
+      settings screen. The setting had a description but no display name in
+      [mod-setting-name] (EN + ES). Also added the 3 missing base-stat
+      descriptions (replstats-speed-base, replstats-energy-base,
+      replstats-pollution-base) in [mod-setting-description] for both locales.
+      Full audit: all 26 settings now have name + description in EN/ES with
+      parity.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.6.1
+Date: 2026-08-11
+  Bugfixes:
+    - Fixed startup crash "Animation speed has to be greater than 0" on
+      dmrsa-replicator-1..5. The v3.6.0 idle_animation used animation_speed = 0
+      (to keep the idle frame static), which Factorio 2.x rejects. Now uses
+      animation_speed = 0.01 — visually still a static dimmed idle frame, but
+      satisfies the > 0 constraint.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.6.0
+Date: 2026-08-09
+  Features (accumulated since 3.5.19 — see individual entries below for detail):
+    - Replicators visibly turn off when idle (idle_animation with dark tint).
+    - New startup setting `dmrsa-research-pack-order`: choose DMR Item First
+      (default) or Science Pack First in the tech tree.
+    - Replication recipes grouped by CATEGORY in the crafting menu (16
+      subgroups: ore, element, shape, alloy, chemical, organic, module,
+      module-advanced, science, military, military-advanced, life, exotic,
+      magic, alien, general) — easier to find items (player feedback).
+    - New startup setting `dmrsa-research-difficulty`: Easy (Fast, default) /
+      Medium (1.5x count, 2x time) / High (3x count, 5x time) for ALL
+      replication research.
+    - Module & Military categories split by progression: modules 1-2 and basic
+      weapons at tier 3 (chemical); advanced modules and endgame ordnance at
+      tiers 4-5. New categories module-advanced, military-advanced.
+    - `dmrsa-grouped-tech-cost-multiplier` default raised 5.0 → 10.0 (grouped
+      techs cost at least 10x per unlockable item).
+    - Lab inputs validation: warns if any SA science pack is missing (load-time
+      diagnostics).
+  Changes:
+    - Chemical Replicator (tier 3) now unlocks BEFORE the planets (visible
+      tech, after logistics). Planets are tier 4; space/cryogenic tier 5.
+    - Science pack replication tiers by progression: automation/logistic=1,
+      military=2, chemical/production/utility=3, planetary=4, space/cryo=5.
+    - Scrap routed to the Fulgora planetary replicator.
+  Bugfixes (accumulated since 3.5.19):
+    - MACHINE_EFFICIENCY category names fixed (metallurgy, electromagnetics,
+      cryogenics, organic, captive-spawner-process) — SA machines now apply
+      their intended multipliers.
+    - Fixed "Unknown key: item-name.X" for all placeable items (place_result →
+      entity-name locale).
+    - Fixed icon misrendering (top-left corner) for large/custom icons
+      (icon_mipmaps dropped, icon_size nil-safe).
+    - Fixed "chemical-science-pack replication research using matter-conduit"
+      — science pack tier is now forced by progression, not the cost chain.
+    - Fixed moon-eneas startup crash (spidertron-unit removed) via optional
+      dependency load-order fix.
+    - Target blacklist: wires, remotes, planners, blueprints, filled barrels
+      excluded from replication.
+    - carbonaceous → carbonic asteroid chunk name fix.
+    - Cost-solver fallback tier fix (cycle/unknown recipes use unlock-tech
+      tier, not hardcoded 1/2) — addresses "Components (Tier 1) contains too
+      much stuff" report.
+  Note:
+    - factorio_version remains "2.0" for backward compatibility (dual-compat
+      code path for 2.1 is active automatically when running on 2.1).
+  Fixes:
+    - idle_animation now uses frame_count = 33 (matching animation) with
+      animation_speed = 0.01. Factorio 2.x rejects idle_animation with a
+      different frame_count than animation on the same sprite sheet
+      ("Idle animation must have the same frame count as animation"), and
+      rejects animation_speed = 0 ("Animation speed has to be greater than
+      0"). The tiny speed keeps the idle state visually static (dimmed
+      frame); working state animates normally.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.25
+Date: 2026-08-09
+  Features:
+    - Replicators now visibly "turn off" when idle: added `idle_animation` to
+      the graphics_set (same sprite sheet, frame 0) with a dark tint (0.55
+      brightness). Factorio displays the dimmed static frame whenever the
+      replicator has no recipe/input, and the normal animated sprite while
+      working. No new assets required — closes the v3.6.0 QoL item inherited
+      from the upstream 0.8.0 roadmap ("replicators that turn off visually
+      when they have no input").
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.24
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed icon misrendering (only top-left corner shown) on replication
+      technologies for items with large/custom icons. Two hardening fixes in
+      get_tech_icons:
+      * `icon_mipmaps` is now dropped from copied icon layers — mipmaps belong
+        to the original item's own rendering pipeline; copying them into a
+        bordered 128x128 tech icon with a different scale misrenders on
+        high-DPI / large-icon items (inherited upstream 0.8.0 bug).
+      * `icon_size` is nil-safe per layer: if a layer or parent omits it (or
+        it is non-numeric/<=0), fall back to 64 instead of producing a bogus
+        scale.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.23
+Date: 2026-08-09
+  Features:
+    - New startup setting `dmrsa-research-pack-order` controlling the order of
+      research pack ingredients in replication technologies' tech tree:
+      'DMR Item First' (default, unchanged behavior) or 'Science Pack First'
+      (vanilla/SA science packs listed before the custom DMR intermediate).
+      Cosmetic only — research cost is unchanged. Applies to both individual
+      and grouped techs. Locale EN/ES.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.22
+Date: 2026-08-09
+  Changes:
+    - data-final-fixes PASS 4 (lab inputs) extended: also ensures the
+      replication-lab accepts space-science-pack and promethium-science-pack
+      (tier 5 packs), not just the four planetary packs.
+    - Added defensive validation: after the add-loop, warn if any intended
+      science pack is missing from lab.inputs, or if the lab/inputs table is
+      absent. This surfaces "no lab will accept all the science packs" errors
+      at load time with a clear message instead of failing silently at
+      research time.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.21
+Date: 2026-08-09
+  Features:
+    - Replication recipes now grouped by CATEGORY in the crafting menu
+      (replication-ore, replication-chemical, replication-module,
+      replication-military, etc. — 16 subgroups mirroring replcategory-name).
+      Previously recipes were grouped only by tier (Tier 1-5 replications),
+      which made finding a specific item (modules, weapons, chemicals)
+      require scanning multiple tiers. This addresses sp518's feedback on the
+      mod portal: "create subgroups for replication so that is easier to find
+      it and/or a search when using the replicator". Planetary items keep
+      their replication-resources subgroup.
+  Bugfixes:
+    - Fixed "Unknown key: item-name.X replication (Recipe)" warnings for ALL
+      placeable items (chests, furnaces, miners, inserters, electric poles,
+      assemblers, walls...). These items have `place_result` and their locale
+      lives in [entity-name], NOT [item-name]. The recipe localised_name now
+      uses `entity-name` prefix when the target item has `place_result`
+      (93 base items affected; mods add more).
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.20
+Date: 2026-08-09
+  Bugfixes:
+    - MACHINE_EFFICIENCY category names fixed to match the real Space Age
+      internal names (verified against space-age/prototypes/recipe.lua):
+      `metallurgic` → `metallurgy`, `electromagnetic` → `electromagnetics`,
+      `cryogenic` → `cryogenics`, `organic-or-egg` → `organic`. The old keys
+      never matched, so Foundry (metallurgy) and other SA machines fell back
+      to the neutral 1.0 multiplier instead of the intended values (e.g.
+      Foundry should be 1/3 like smelting).
+    - Added `captive-spawner-process` (1.5x — captive biter spawner,
+      biochamber, more complex) and `hand-crafting` (1.0 — neutral).
+    - Audit note: `farming`/`brewing` kept for mod compatibility (some mods
+      use those names even though vanilla SA uses `organic`).
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.19
+Date: 2026-08-09
+  Bugfixes:
+    - Science pack replication tier is now FORCED (absolute), not just a floor.
+      The cost-solver recipe chain could push chemical-science-pack to tier 4-5
+      (advanced circuits, engines, sulfur), which made its replication research
+      use matter-conduit (tier 4/5 pack) instead of dark-matter-transducer
+      (tier 3 pack). Science packs' replication tier is defined by their
+      progression position (chemical=3, planetary=4, space/cryo=5), not by
+      their crafting ingredients, so the override now forces the tier both
+      up AND down.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.18
+Date: 2026-08-09
+  Bugfixes:
+    - `scrap` (Space Age, Fulgora) is now classified to the Fulgora planetary
+      replicator. Previously it fell through to the generic tier-1 replication
+      category, so scrap replication was available from the simple replicator
+      instead of requiring the Fulgora planetary replicator.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.17
+Date: 2026-08-09
+  Bugfixes:
+    - Chemical Replicator (tier 3) is now VISIBLE and unlockable before the
+      planets with Space Age. Previously `dmrsa-replication-3` was hidden with
+      empty effects in SA, so the Chemical Replicator had no visible tech and
+      appeared "with the planets". Now it unlocks at tier 3 (after logistics,
+      before vulcanus/fulgora/gleba/aquilo).
+    - Tier 4 research now requires `dmrsa-replication-3` as a prerequisite
+      (planets are tier 4; chemical is tier 3).
+    - Tier 3 research no longer requires metallurgic-science-pack (planetary);
+      it uses chemical science only. Tier 4 uses the planetary packs.
+    - chemical-science-pack (and production/utility) replication tier fixed:
+      they were pushed to tier 5 by the cost-solver recipe chain; now anchored
+      to tier 3 by name. Science pack replication tiers now match progression:
+      automation/logistic=1, military=2, chemical/production/utility=3 (before
+      planets), planetary=4, space/cryo/promethium=5.
+    - `get_tier_from_tech` science-pack mapping updated to the same progression
+      (chemical→3, production/utility→3, planetary→4).
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.16
+Date: 2026-08-09
+  Features:
+    - Added `dmrsa-research-difficulty` startup setting (Easy (Fast) / Medium / High).
+      Scales research count and time for ALL replication technologies:
+      * Easy (Fast) — default, no change (historical behavior)
+      * Medium — 1.5x count, 2x time
+      * High — 3x count, 5x time
+      Applied to: individual techs, grouped techs, tier techs (technologies.lua),
+      and planetary techs (planetary-tech.lua).
+  Changes:
+    - `dmrsa-grouped-tech-cost-multiplier` default raised 5.0 → 10.0. Grouped
+      technologies unlock many items at once, so their research cost is now at
+      least 10x per unlockable item (user request: grouped should be noticeably
+      more expensive by number of unlockables).
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.15
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed startup crash "Error in assignID: technology with name 'spidertron-unit'
+      does not exist. It was removed by moon-eneas." The grouped technology
+      `dmrsa-grouped-repl-5-general-tech` (and any tech whose group includes
+      spidertron items) referenced `spidertron-unit` as a prerequisite, but the
+      external mod moon-eneas deletes that technology in its data-final-fixes
+      phase. Because DMR's data-final-fixes ran BEFORE moon-eneas's (no declared
+      dependency), the PASS 1 prerequisite-stripping never saw the deletion, and
+      the invalid prereq survived to the assignID phase.
+    - Fix: declared `? moon-eneas` as an optional dependency in info.json. This
+      forces Factorio to load DMR's data-final-fixes AFTER moon-eneas's, so
+      PASS 1 strips the now-missing `spidertron-unit` prerequisite and PASS 3
+      re-routes any orphaned grouped tech as designed. The same mechanism
+      generalizes to any other mod that deletes vanilla/moddable techs — add an
+      optional dependency to force load order.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.14
+Date: 2026-08-09
+  Features:
+    - Split module and military replication categories by progression tier.
+      Previously ALL modules were gated at tier 5 (cryogenic) and ALL weapons
+      at tier 4 (space), regardless of vanilla unlock timing. Now:
+      * Modules (`*-module`, `*-module-2`) → tier 3 (chemical), mirroring
+        vanilla where speed/eff/productivity 1-2 unlock with chemical science.
+      * Advanced modules (`*-module-3`) → tier 4 (space), mirroring vanilla
+        where module 3 unlocks with space science.
+      * Basic weapons/ammo (pistol, shotgun, magazines, grenades, capsules,
+        land-mine, rocket, cannon-shell) → tier 3 (chemical).
+      * Endgame ordnance (uranium, artillery, explosive-rocket, cluster-grenade,
+        explosive-cannon-shell, spidertron, nuke) → tier 5 (cryogenic).
+    - Added two new replication categories: `module-advanced` (tier 4) and
+      `military-advanced` (tier 5), with locale entries in en and es-ES.
+    - This addresses player feedback (mod portal + in-game) that modules and
+      weapons were invisible in low-mid tiers and only appeared very late.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.13
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed asteroid chunk name mismatch: `carbonaceous-asteroid-chunk` →
+      `carbonic-asteroid-chunk` in lib/cost-solver.lua (BASE_RESOURCE_COSTS)
+      and lib/target-mapper.lua (hidden-item whitelist). The Space Age item
+      is named `carbonic-asteroid-chunk`; the code had a stale name, so the
+      chunk was not mapped to tier 4 and fell through to the low-tier
+      fallback (appeared in the chemical/tier-3 replication tech before the
+      player had launched a rocket). Now it maps to tier 4 like the other
+      asteroid chunks.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.12
+Date: 2026-08-09
+  Bugfixes:
+    - Added TARGET_BLACKLIST to lib/target-mapper.lua, excluding UI/utility items
+      from replication: red-wire, green-wire, copper-wire, artillery-targeting-remote,
+      discharge-defense-remote, spidertron-remote, blueprint, blueprint-book,
+      deconstruction-planner, upgrade-planner, copy-paste-tool, cut-paste-tool,
+      selection-tool, rail-planner. These items are player-carried utilities, not
+      production materials, so replicating them adds no value and pollutes the
+      replication tech lists (user report: red-wire/green-wire and spidertron-remote
+      were shown as replicable before ever being unlocked).
+    - Added filled-barrel exclusion in lib/target-mapper.lua. Filled barrels
+      (fill-<fluid>-barrel and <fluid>-barrel patterns) are containers that
+      would let players duplicate fluids without a replication recipe for the
+      fluid itself. The empty barrel ("barrel") remains replicable.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.11
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed cost-solver fallbacks assigning tier 1/2 to items that couldn't be
+      resolved, polluting low-tier grouped techs with overhaul-mod and Space Age
+      items. Root cause from mod portal report "Replication: Components (Tier 1)
+      contains too much stuff?" (with Bob's): many intermediate items have cyclic
+      recipes or unknown recipes, and the fallbacks hardcoded tier 1 (cycle) and
+      tier 2 (unknown). Now both fallbacks use the item's unlock-tech tier via
+      `get_tier_from_tech` when a tech exists, so a Bob's item gated behind a
+      mid-game tech no longer lands in Tier 1.
+    - Relaxed the ingredient-tier + 1 cap when ingredients resolve to tier 1.
+      Previously, an item whose ingredients were all degraded by cycles (tier 1)
+      could never have its unlock-tech tier apply (capped at 2). Now the cap
+      only applies when the ingredient tier is > 1, so genuinely simple items
+      stay protected from "blue bottle" inflation while fallback-degraded items
+      can reach their true tier.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.10
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed planetary grouped tech `localised_name` passing 3 parameters to a
+      2-placeholder template. The template `dmrsa-grouped-repl-planet-tech` is
+      `Replication: __1__ (__2__)`, but the code passed `replcategory-name.X`,
+      `planet-name.X`, AND a literal `planet_suffix` as a third positional
+      argument. Factorio reported the extra argument as `parameter-2` in the
+      runtime log. Removed the redundant literal `planet_suffix` parameter;
+      now passes exactly 2 parameters matching the template's 2 placeholders.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.9
+Date: 2026-08-09
+  Bugfixes:
+    - Added `promethium-asteroid-chunk` to BASE_RESOURCE_COSTS in cost-solver.lua
+      with tier 5 (cost 10.0). Previously this Space Age asteroid chunk was
+      missing from the table and fell through to the cost-solver's recursive
+      path, which returned a fallback tier 1 because the item is mined (not
+      crafted), causing it to be assigned to a tier 1 grouped tech.
+    - Added new `FLUID_TIER_OVERRIDES` table in cost-solver.lua for fluids
+      that have no crafting recipe (passive building outputs). Currently used
+      for `fusion-plasma` (Space Age fusion reactor output) at tier 5 (cost
+      25.0). Without this, fusion-plasma had no recipe path to compute tier
+      from and was silently assigned to the tier 1 fallback.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.8
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed Space Age planetary classification for cryogenic fluids in
+      prototypes/recipes/dynamic-generator.lua. The aquilo (cryogenic)
+      branch had `name == "fluoroketone"` (exact match) which never matched
+      because the actual internal names are `fluoroketone-cold` and
+      `fluoroketone-hot`. Changed to `string.find(name, "fluoroketone")` so
+      both variants route to the aquilo planetary recipe category.
+    - Added `fluorine` to the aquilo branch. Fluorine is a Space Age
+      cryogenic fluid that was being routed to the generic tier 3 chemical
+      category instead of aquilo, even though it logically belongs with
+      other cryogenic materials (ice, lithium, fluoroketone variants).
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.7
+Date: 2026-08-09
+  Bugfixes:
+    - Extended MACHINE_EFFICIENCY in cost-solver.lua with 8 Space Age recipe
+      categories that were silently falling back to the neutral 1.0x multiplier:
+      farming, brewing, metallurgic (set to 1/3 like foundry), electromagnetic,
+      cryogenic, organic-or-egg, crushing, and crafting-with-fluid-or-recycling.
+      Without these, recipes made in agricultural towers, biochambers, foundries,
+      electromagnetic plants, and cryogenic plants had no efficiency adjustment.
+  Changes:
+    - Removed unused `localized` field from each repltypes entry. The category
+      display name is sourced from the locale `[replcategory-name]` section
+      keyed by category name, not from hardcoded English strings in code.
+      This avoids locale drift between code and translation files. No behavior
+      change — the field was never read.
+    - Fixed malformed `order = "f[dark-matter]"` string in dark-matter.lua for
+      the hidden dmrsa-dark-matter item. Changed to standard `"z"` format.
+      Cosmetic only (item is hidden), but keeps the code consistent with
+      other order strings.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.6
+Date: 2026-08-09
+  Bugfixes:
+    - Replaced "Mirrors [entity-description] ..." placeholder text in
+      [item-description] for the 5 tier replicators with the actual descriptions.
+      Previously, holding a replicator item in the cursor showed the literal
+      placeholder string because Factorio resolves [item-description] for items,
+      not [entity-description]. Both locales updated.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.5
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed replicator item subgroup: tier 1-5 replicators (item prototypes)
+      used `subgroup = "production-machine"` (vanilla subgroup), placing them
+      in the vanilla "Production" tab instead of the DMR "Replication" tab.
+      Changed to `gprefix .. "replicators"` so all 5 tiers join the planetary
+      replicators and the replication lab in the custom subgroup.
+    - Added localized names for the 5 dynamic-recipe subgroups
+      (`dmrsa-replication-tier-1` through `-5`) in en and es-ES. Previously
+      these subgroups existed in code but had no locale entries, so the
+      crafting menu displayed the raw subgroup keys for every dynamic recipe.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.4
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed LocalisedString parameter rendering in dynamic-generator.lua. The
+      individual-technology path passed `"?"` as a parameter inside the
+      localised_name array, but Factorio 2.x interprets `"?"` as a KEY (used
+      for fallback selection), not as a parameter. The result was that all
+      dynamic recipes and individual techs displayed the literal string
+      "parameter-0", "parameter-1", etc. in their names and descriptions,
+      instead of the actual item name.
+      The fix precomputes the correct localisation prefix from target.type
+      (item, ammo, armor, gun, capsule, tool, module, item-with-entity-data,
+      item-with-tags, spidertron-remote, space-platform-starter, fluid, entity)
+      and uses a single-parameter LocalisedString. This restores the intended
+      display "Replication: <item name>" and "Replication: <item name>
+      (Tier N)" / "Replication: <category> (<planet>)" for grouped techs
+      (which were already correct).
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.3
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed `dmrsa-use-machine-efficiency` description in en and es-ES locales.
+      The description claimed the setting was "Disabled by default" while the
+      actual default in settings.lua is `true`. Aligned text with code.
+    - Fixed `order = "1-1-3"` conflict in settings.lua. The `replication-in-space`
+      setting shared its order key with `replstats-speed-base`, causing them to
+      render out of order in the mod settings UI. Moved to `1-6-1`.
+  Changes:
+    - Added `dmrsa-log-level` name and description in en and es-ES locales.
+      Previously the setting existed in code but had no locale entries, so
+      users saw the raw key. Documented all five log levels (none, error, warn,
+      info, debug) with their behavior.
+    - Rewrote all entity descriptions for the 10 replicators (tiers 1-5 plus
+      vulcanus/fulgora/gleba/aquilo) and the replication lab. Old descriptions
+      were from the original Factorio 0.x fork and predated v3.5.x. New text
+      reflects current tier classification (cost-solver, machine efficiency,
+      planetary science packs in Space Age).
+    - Added item description for `dmrsa-tenemut` (was missing in both locales).
+    - Added `item-subgroup-name` and `recipe-category-name` sections to both
+      locales with localized names for the 2 subgroups and 4 planetary recipe
+      categories. Players previously saw raw internal keys in the crafting UI.
+    - Added names and descriptions for the 5 tier technologies
+      (`dmrsa-replication-1` through `-5`). These technologies existed in code
+      but had no locale entries, so the tech tree displayed the raw keys.
+      New descriptions explain what each tier unlocks and reference the
+      v3.5.x behavior (planetary techs in Space Age, SA requirements for
+      tier 4 and 5).
+    - Replaced the legacy "#unused after the dmrsa name change?" placeholder
+      block in [item-description] with explicit "Mirrors [entity-description]"
+      pointers, making it clear that the canonical descriptions live in the
+      entity section.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.2
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed data-final-fixes PASS 3 tier 3 reassignment under Space Age. Previously,
+      orphaned grouped technologies whose tier digit resolved to "3" had their
+      `target_tech_name` set to `nil`, causing their recipe unlocks to be silently
+      discarded (the orphan tech was hidden but its effects were never migrated).
+      Now the unlocks are reassigned to the hidden `dmrsa-replication-3` placeholder
+      tech, preserving them. This bug only triggered in the rare case where ALL of
+      a grouped tech's prerequisites were stripped by other mods in their own
+      data-final-fixes phase.
+    - Added defensive warning when an orphan technology does not match either the
+      tier pattern or the planet pattern in PASS 3. Previously, such cases failed
+      silently; now a `warn` log entry identifies the unmatched tech name so the
+      patterns can be extended if needed.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.1
+Date: 2026-08-09
+  Bugfixes:
+    - Fixed recipe selection in cost-solver to correctly evaluate recipes that use
+      `normal.ingredients` (Factorio 2.0+ format) via a new `get_ing_count()` helper.
+      Items whose recipes previously defaulted to ingredient count 99 now compete
+      correctly in the simplicity comparison, fixing persistent tier misclassification
+      with overhaul mods (Bob's, Angel's, Krastorio 2) where intermediate items were
+      incorrectly assigned to Tier 1.
+    - Fixed fallback heuristic order in `get_tier_from_tech()`: technologies with 5+
+      unique science packs now correctly reach tier 3 instead of being capped at
+      tier 2 (the previous `>= 3` check fired before `>= 5`).
+    - Fixed data-final-fixes PASS 3 to handle orphaned planetary grouped technologies.
+      Added `planet_match` pattern that captures the planet from names like
+      `dmrsa-grouped-repl-vulcanus-ore-tech` and reassigns unlocks to the corresponding
+      `dmrsa-replication-{planet}-tech`. Previously, these orphan techs were disabled
+      but their recipe unlocks were silently lost.
+    - Fixed config-setting fallback for `dmrsa-use-machine-efficiency` to match the
+      default value declared in settings.lua (`true`). Code now uses `true` as the
+      fallback instead of `false`, eliminating the documentation/code discrepancy.
+    - Added nil-safety to `prototypes/raw-resources.lua` settings access. Replaced
+      direct `settings.startup["tenemut-near-spawn"].value` access with a nil-check
+      pattern (`spawn_setting and spawn_setting.value == false`).
+  Changes:
+    - Removed unreachable `device2`-`device5` categories (4 dead entries from the
+      v3.5.0 category refactor). These were defined in `repltypes.lua` and locale
+      files but never assigned by `get_item_category()`. Active categories: 14
+      (ore, element, shape, alloy, chemical, organic, military, module, life,
+      exotic, magic, alien, science, general).
+    - Added `require("defines")` to `prototypes/raw-resources.lua` and replaced
+      hardcoded `gprefix` in `lib/target-mapper.lua` for consistency with the rest
+      of the codebase.
+    - Removed dead code branch (`tier > 5`) in `get_tech_icons()` border selection.
+    - Added documentation comment for the `math.min(efficiency, cat_eff)` semantics
+      in machine-efficiency multiplier selection.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.5.0
+Date: 2026-07-19
+  Compatibility:
+    - Dual compatibility with Factorio 2.0 and 2.1. Recipe category field uses version detection:
+      `category` (string) on 2.0, `categories` (array) on 2.1.
+      recipe_has_category() and machine-efficiency detection handle both formats.
+  Features:
+    - Refactored category system to use fixed tiers per category (from original fork).
+      Category now determines the FLOOR tier; cost-solver can only push HIGHER.
+      This fixes persistent tier misclassification with overhaul mods (Bob's, Angel's, etc.)
+      where items with simple ingredient chains were incorrectly placed in low tiers.
+    - Expanded replication categories from 7 to 18: ore, element, shape, alloy, chemical,
+      device2-5, organic, military, module, life, exotic, magic, alien, science, general.
+      Each category has a FIXED tier: ore=1, element/shape/device2=2, alloy/chemical/device3=3,
+      device4/military=4, device5/module/life/exotic/magic/alien=5.
+    - Added "Military & Weapons" category (tier 4). Guns, ammo, armor, and capsules
+      no longer fall under "Components" — they get their own grouped technology.
+    - Machine efficiency multipliers (replvar system from original). Startup setting
+      "dmrsa-use-machine-efficiency" (default: true) adjusts replication costs based on
+      the original recipe's machine type: electric furnaces cost less to replicate,
+      oil refineries and centrifuges cost more.
+    - Smart prerequisite cleanup: removes redundant prerequisites from grouped technologies
+      (if A requires B and B requires C, C is removed from A's list since it's implied).
+  Improved:
+    - get_tier_from_tech(): added detection for military science packs, Bob's advanced-logistic
+      science pack, numbered science packs (modname-science-pack-N), gold, alien packs.
+      Added fallback heuristic using unique science pack count.
+    - get_item_category(): expanded auto-classification to cover all 18 categories.
+      Element detection via periodic table name matching, shape detection via
+      item name patterns (gear, pipe, stick, cable, brick, bearing, etc.).
+  Localization:
+    - Added replcategory-name entries for all 18 categories in EN and ES-ES.
+    - Added setting name/description for dmrsa-use-machine-efficiency.
+---------------------------------------------------------------------------------------------------
+Version: 3.3.6
+Date: 2026-07-15
+  Features:
+    - Re-enabled original item technologies as prerequisites for dynamic replication
+      technologies (individual and grouped), with safe existence check. If another mod
+      removes a technology in data-final-fixes, the prereq is gracefully skipped instead
+      of crashing. This ensures replication techs are properly gated: you must research
+      the original item's technology before you can replicate it (fixes "blue bottle in T5"
+      scenario where mid-game items were replicable at endgame tiers).
+  Balance:
+    - Capped tech-tier contribution to ingredient-tier + 1 in cost-solver. Prevents mods
+      with deep tech trees (Bob's, Angel's) from inflating replication tiers of simple
+      intermediate items. An item whose ingredients are T2 will no longer jump to T5 just
+      because its original unlocking-tech requires space science.
+---------------------------------------------------------------------------------------------------
+Version: 3.3.5
+Date: 2026-07-08
+  Bugfixes:
+    - Fixed "no lab will accept all the science packs" startup crash when using Space Age
+      with grouped technology distribution. The Vulcanus planetary grouped technologies
+      (e.g. dmrsa-grouped-repl-vulcanus-chemical-tech) required both metallurgic-science-pack
+      and dmrsa-dark-matter-scoop, but the replication-lab's inputs were conditionally set
+      in data.lua via ternary (mods["space-age"] ...). Moved to a belt-and-suspenders approach:
+      lab base inputs are now unconditionally the 4 DMR science items, and Space Age planetary
+      science packs are added in data-final-fixes.lua as a guaranteed safety net.
+    - Added explicit research_category = nil to the replication-lab to ensure it matches
+      all technology categories regardless of engine defaults.
+  Balance:
+    - Implemented diminishing returns compounding formula for "Recursive Steps (Compounding)"
+      cost calculation method. Each additional recipe depth level adds a smaller surcharge
+      (penalty/(depth+1)) instead of a full 1.5x on every level, preventing exponential
+      blowup for deep recipe chains. Logistic science pack compounding cost reduced from
+      ~5x to ~2.5x relative to base resource cost.
+    - Added hard cap of 600s on energy_required for any replication recipe, preventing
+      edge-case extreme costs from compounding in deep chains regardless of mode.
+---------------------------------------------------------------------------------------------------
+  Bugfixes:
+    - Fixed "Error in assignID: technology 'aai-loader' does not exist" crash when using
+      aai-loaders-sane mod. Root cause: original item technologies (e.g. 'aai-loader') were
+      being added as prerequisites for grouped replication technologies in data-updates.lua,
+      but could be removed by other mods in data-final-fixes.lua. The order in which
+      data-final-fixes.lua runs between unrelated mods is alphabetical, so if another mod
+      runs after DMR, the removal would happen after DMR's strip pass, causing an assignID
+      crash. Fix: removed the addition of external original techs as prerequisites for all
+      dynamic DMR technologies (grouped and individual). The replication tier requirements
+      are sufficient to gate these technologies.
+    - Refactored data-final-fixes.lua into a 3-pass safety net with proper Lua pattern
+      escaping for the 'dmrsa-' prefix (the '-' character is a lazy quantifier in Lua
+      patterns and MUST be escaped). Added cross-mod validation and orphan tech reassignment.
+---------------------------------------------------------------------------------------------------
+Version: 3.3.3
+Date: 2026-06-28
+  Bugfixes:
+    - Added data-final-fixes.lua that strips missing technology prerequisites from all DMR
+      technologies at the end of the loading cycle. Fixes "Error in assignID: technology with
+      name 'X' does not exist" crashes when other mods remove technologies (e.g. moon-eneas
+      removing spidertron-unit).
+    - Added prerequisite deduplication pass during grouped technology generation to prevent
+      "Technology prerequisite 'X' is registered more than once" errors with mods that share
+      technology names (e.g. Angel's Smelting + Angel's Petrochem both registering
+      angels-basic-chemistry).
+    - Added existence check before adding original item technologies as prerequisites for
+      grouped replication technologies, preventing crashes when referenced techs are missing.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.3.2
+Date: 2026-06-12
+  Bugfixes:
+    - Fixed technology research tier classification when using mods that replace science packs with custom items (such as Krastorio 2 tech cards). Technology requirements are now resolved using pattern matching, preventing late-game science packs from being unlocked at replication Tier 1.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.3.1
+Date: 2026-06-11
+  Bugfixes:
+    - Fixed "Technology prerequisite 'X' is registered more than once" startup crash when mods like Angel's Smelting + Angel's Petrochem both register the same technology. Wrapped data:extend() in pcall so the replicator mod gracefully falls back to baseline unlocks instead of crashing.
+
+---------------------------------------------------------------------------------------------------
+Version: 3.3.0
+Date: 2026-06-11
+  Changes:
+    - Removed dead de-replication code and zombie 'dmrsa-dereplication-ratio' setting that were disabled since v3.0.0.
+
+---------------------------------------------------------------------------------------------------
 Version: 3.2.1
 Date: 2026-06-11
   Bugfixes:
@@ -240,4 +995,4 @@ Date: 2020-03-04
 
   Bug Fixes:
     - change tenemut mining particle type to "optimized-particle"
-    - fix icon sizes in tenemut tab 
+    - fix icon sizes in tenemut tab

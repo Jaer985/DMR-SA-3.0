@@ -41,6 +41,26 @@ for i = 1, 5 do
     })
 end
 
+-- 3b. Register item subgroups per replication category (v3.5.21).
+-- This makes it easy to find items in the replicator crafting menu by
+-- category (modules, weapons, chemicals...) instead of scanning each tier.
+-- Mirrors the [replcategory-name] locale keys so names resolve automatically.
+local category_subgroups = {
+    "ore", "element", "shape", "alloy", "chemical", "organic",
+    "module", "module-advanced", "science", "military", "military-advanced",
+    "life", "exotic", "magic", "alien", "general"
+}
+for _, cat in ipairs(category_subgroups) do
+    data:extend({
+        {
+            type = "item-subgroup",
+            name = gprefix .. "replication-" .. cat,
+            group = "dmrsa-replication",
+            order = "d[dmrsa-cat-" .. cat .. "]"
+        }
+    })
+end
+
 data:extend({
     -- Pure Dark Matter (High-stack universal input item)
     {
@@ -57,7 +77,7 @@ data:extend({
         },
         icon_size = 64,
         subgroup = "raw-resource", -- Raw resource is placed under vanilla raw resources to keep it in the natural ore group
-        order = "f[dark-matter]",
+        order = "z",
         stack_size = 1000
     },
 

@@ -1,11 +1,93 @@
 local helpers = {}
 
+-- Log level definitions (higher number = more verbose)
+helpers.LOG_LEVELS = {
+    none = 0,
+    error = 1,
+    warn = 2,
+    info = 3,
+    debug = 4
+}
+
+-- Internal: check if a message at the given level should be emitted
+function helpers._should_log(level)
+    local current_level_name = helpers.get_startup_setting("dmrsa-log-level", "warn")
+    local current_priority = helpers.LOG_LEVELS[current_level_name] or helpers.LOG_LEVELS.warn
+    local msg_priority = helpers.LOG_LEVELS[level] or helpers.LOG_LEVELS.info
+    return msg_priority <= current_priority
+end
+
+-- Level-aware logging (replaces the old unconditional log)
+function helpers.log(message, level)
+    level = level or "info"
+    if helpers._should_log(level) then
+        log("[DarkMatterReplicators] " .. tostring(message))
+    end
+end
+
+-- Convenience aliases for each log level
+function helpers.error(message)
+    helpers.log(message, "error")
+end
+
+function helpers.warn(message)
+    helpers.log(message, "warn")
+end
+
+function helpers.info(message)
+    helpers.log(message, "info")
+end
+
+function helpers.debug(message)
+    helpers.log(message, "debug")
+end
+
 -- 1. Settings parsing with short-circuit evaluation
 function helpers.get_startup_setting(name, default_value)
     if settings and settings.startup and settings.startup[name] and settings.startup[name].value ~= nil then
         return settings.startup[name].value
     end
     return default_value
+end
+
+-- 2. Research difficulty — single source of truth (v3.7.0).
+-- One table defines ALL THREE axes per difficulty so they always match:
+--   cost       = research repetition multiplier (replaces replresearch-item-multiplier)
+--   time       = research time per tech in seconds (replaces replresearch-item-time)
+--   cap        = max replication recipe crafting time (the old hard 600s cap)
+-- Easy (Fast) reads the player's replresearch-* settings (historical default
+-- 25 cost / 5s time / 600s cap). Harder levels use fixed values from the table.
+function helpers.get_research_difficulty_values()
+    local difficulty = helpers.get_startup_setting("dmrsa-research-difficulty", "Easy (Fast)")
+    if difficulty == "Medium" then
+        return { cost = 50, time = 15, cap = 1000 }
+    elseif difficulty == "High" then
+        return { cost = 100, time = 30, cap = 1800 }
+    elseif difficulty == "Very Hard" then
+        return { cost = 200, time = 45, cap = 3200 }
+    end
+    -- Easy (Fast): historical behavior preserved, player settings respected
+    return {
+        cost = helpers.get_startup_setting("replresearch-item-multiplier", 25),
+        time = helpers.get_startup_setting("replresearch-item-time", 5),
+        cap = 600,
+    }
+end
+
+-- Backward-compat alias: returns {reps_mult, time_mult} derived from the table
+-- (relative to the Easy baseline 25/5) for code that still multiplies.
+function helpers.get_research_difficulty_multipliers()
+    local v = helpers.get_research_difficulty_values()
+    return { reps_mult = v.cost / 25, time_mult = v.time / 5 }
+end
+
+-- v3.7.0: Max replication recipe time cap per research difficulty.
+-- The historical hard cap was 600s for every difficulty. Now the cap scales:
+-- Easy (Fast) keeps the historical 600, then 1000 / 1800 / 3200 as the
+-- difficulty rises — deep recipe chains cost more real time on harder modes,
+-- while Easy stays the compactation-helper the mod is known for.
+function helpers.get_replication_time_cap()
+    return helpers.get_research_difficulty_values().cap
 end
 
 -- 2. Registry validation before creating recipe/tech
@@ -68,9 +150,7 @@ function helpers.has_flag(flags_table, search_flag)
     return false
 end
 
--- 6. Safe logging utility
-function helpers.log(message)
-    log("[DarkMatterReplicators] " .. tostring(message))
-end
+-- 6. Level-aware logging (defined at top of file)
+--    Use helpers.info(), helpers.warn(), helpers.error(), helpers.debug()
 
 return helpers

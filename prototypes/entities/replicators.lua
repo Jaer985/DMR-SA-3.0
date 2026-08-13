@@ -115,6 +115,29 @@ for tier = 1, 5 do
                 animation_speed = 1 / 3,
                 scale = entity_corner * 2 / 3,
                 shift = { entity_corner * 0.4 / 3, entity_corner * 0.1 }
+            },
+            -- v3.6.0: idle animation shows the replicator DIMMED when it has no
+            -- recipe/input, so it visibly "turns off" instead of looking like
+            -- it's always running. Uses the same sprite sheet with a dark tint;
+            -- Factorio only displays it while the machine is idle.
+            -- NOTE: Factorio 2.x REQUIRES idle_animation.frame_count to equal
+            -- animation.frame_count (same sprite sheet) — otherwise the game
+            -- refuses to load the entity. frame_count = 33 matches animation.
+            idle_animation = {
+                filename = "__dark-matter-replicators-reborn__/graphics/entity/replicator-" .. tier .. ".png",
+                priority = "high",
+                width = 113,
+                height = 91,
+                frame_count = 33,
+                line_length = 11,
+                -- animation_speed MUST be > 0 (Factorio rejects 0). A tiny
+                -- value (0.01) makes the 33-frame cycle take ~55s, so the
+                -- idle state is visually a static dimmed frame while still
+                -- satisfying the > 0 constraint.
+                animation_speed = 0.01,
+                scale = entity_corner * 2 / 3,
+                shift = { entity_corner * 0.4 / 3, entity_corner * 0.1 },
+                tint = { r = 0.55, g = 0.55, b = 0.55, a = 0.9 }
             }
         },
         working_sound = {
@@ -144,7 +167,7 @@ for tier = 1, 5 do
             name = gprefix .. "replicator-" .. tier,
             icon = "__dark-matter-replicators-reborn__/graphics/icons/replicator-" .. tier .. ".png",
             icon_size = 64,
-            subgroup = "production-machine",
+            subgroup = gprefix .. "replicators",
             order = "b" .. tier,
             place_result = gprefix .. "replicator-" .. tier,
             stack_size = 50
@@ -218,6 +241,7 @@ data:extend({
             gprefix .. "dark-matter-transducer",
             gprefix .. "matter-conduit"
         },
+        research_category = nil,
         module_slots = 2,
         allowed_module_categories = { "efficiency", "speed", "productivity" }
     }

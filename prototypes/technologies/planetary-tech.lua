@@ -5,12 +5,22 @@ local gprefix = "dmrsa-"
 local function make_research_unit(count, packs, time)
     local ingredients = {}
     for _, pack in ipairs(packs) do
-        table.insert(ingredients, { pack, 1 })
+        if helpers.item_exists(pack) then
+            table.insert(ingredients, { pack, 1 })
+        end
     end
+    -- Fallback: if all specified packs are missing, use tenemut as a fallback to avoid startup errors
+    if #ingredients == 0 then
+        if helpers.item_exists(gprefix .. "tenemut") then
+            table.insert(ingredients, { gprefix .. "tenemut", 1 })
+        end
+    end
+    -- Apply research difficulty multipliers (Medium/High) to planetary techs
+    local diff_mult = helpers.get_research_difficulty_multipliers()
     return {
-        count = count,
+        count = math.max(1, math.ceil(count * diff_mult.reps_mult)),
         ingredients = ingredients,
-        time = time or 30
+        time = math.max(1, math.ceil((time or 30) * diff_mult.time_mult))
     }
 end
 

@@ -21,4 +21,4 @@ By default, replicating items on space platforms is disabled, but you can enable
 The mod exposes helper functions like `repltech_recipe`, `repltech_item`, and `repltech_ore`. You can find the full technical guide and examples in the `How to add replications to a mod.txt` file.
 
 ### 6. Where should I report bugs or compatibility issues?
-If you encounter a bug, startup crash, or mod compatibility issue, please post it on our [GitHub Issues Tracker](https://github.com/nihilistzsche/dark-matter-replicators-reborn/issues) or under the Discussions tab on the Factorio Mod Portal. When reporting, please include any error messages, your startup logs, and a list of other active mods to help us identify and resolve the issue quickly.
+If you encounter a bug, startup crash, or mod compatibility issue, please post it on our [GitHub Issues Tracker](https://github.com/Jaer985/dark-matter-replicators-reborn_3/issues) or under the Discussions tab on the Factorio Mod Portal. When reporting, please include any error messages, your startup logs, and a list of other active mods to help us identify and resolve the issue quickly.

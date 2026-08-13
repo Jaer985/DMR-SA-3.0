@@ -5,34 +5,47 @@ local gprefix = "dmrsa-"
 local function make_research_unit(count, packs, time)
     local ingredients = {}
     for _, pack in ipairs(packs) do
-        table.insert(ingredients, { pack, 1 })
+        if helpers.item_exists(pack) then
+            table.insert(ingredients, { pack, 1 })
+        end
     end
+    -- Fallback: if all specified packs are missing, use tenemut as a fallback to avoid startup errors
+    if #ingredients == 0 then
+        if helpers.item_exists(gprefix .. "tenemut") then
+            table.insert(ingredients, { gprefix .. "tenemut", 1 })
+        end
+    end
+    -- Apply research difficulty multipliers (Medium/High) to ALL static techs
+    local diff_mult = helpers.get_research_difficulty_multipliers()
     return {
-        count = count,
+        count = math.max(1, math.ceil(count * diff_mult.reps_mult)),
         ingredients = ingredients,
-        time = time or 30
+        time = math.max(1, math.ceil((time or 30) * diff_mult.time_mult))
     }
 end
 
 -- 1. Baseline Science Packs List
 local t1_packs = { "automation-science-pack", "logistic-science-pack" }
-local t2_packs = { "automation-science-pack", "logistic-science-pack", "chemical-science-pack" }
+-- Tier 2: automation + logistic ONLY (no chemical). Progression: chemical is
+-- tier 3. t2_packs previously included chemical-science-pack, which made
+-- replication-2 (transducer, replicator-2) require chemical before it should.
+local t2_packs = { "automation-science-pack", "logistic-science-pack" }
 
--- Check for Space Age expansion packs
+-- Tier 3: chemical is the endpoint of tier 3 (before planets). With SA,
+-- production/utility don't exist; the tier 3 tech uses chemical only.
 local t3_packs = { "automation-science-pack", "logistic-science-pack", "chemical-science-pack" }
-if mods["space-age"] then
-    -- Require planetary science to progress to high tiers
-    table.insert(t3_packs, "metallurgic-science-pack")
-end
 
+-- Tier 4: planetary packs (SA) — the planets ARE tier 4.
 local t4_packs = { "automation-science-pack", "logistic-science-pack", "chemical-science-pack" }
 if mods["space-age"] then
-    table.insert(t4_packs, "production-science-pack")
-    table.insert(t4_packs, "utility-science-pack")
+    table.insert(t4_packs, "metallurgic-science-pack")
+    table.insert(t4_packs, "electromagnetic-science-pack")
+    table.insert(t4_packs, "agricultural-science-pack")
 else
     table.insert(t4_packs, "production-science-pack")
 end
 
+-- Tier 5: space, cryogenic (SA) or utility/space (non-SA)
 local t5_packs = { "automation-science-pack", "logistic-science-pack", "chemical-science-pack" }
 if mods["space-age"] then
     table.insert(t5_packs, "space-science-pack")
@@ -41,6 +54,21 @@ else
     table.insert(t5_packs, "utility-science-pack")
     table.insert(t5_packs, "space-science-pack")
 end
+
+-- Inject space-science-pack into research requirements for space-locked tiers
+local function add_science_pack_if_missing(pack_list, pack_name)
+    for _, name in ipairs(pack_list) do
+        if name == pack_name then return end
+    end
+    table.insert(pack_list, pack_name)
+end
+
+local space_lock = helpers.get_startup_setting("replresearch-space-lock", 6)
+if space_lock <= 1 then add_science_pack_if_missing(t1_packs, "space-science-pack") end
+if space_lock <= 2 then add_science_pack_if_missing(t2_packs, "space-science-pack") end
+if space_lock <= 3 then add_science_pack_if_missing(t3_packs, "space-science-pack") end
+if space_lock <= 4 then add_science_pack_if_missing(t4_packs, "space-science-pack") end
+if space_lock <= 5 then add_science_pack_if_missing(t5_packs, "space-science-pack") end
 
 local tech_list = {
     -- Technology Tier 1
@@ -89,13 +117,17 @@ if not mods["space-age"] then
         order = "a-r-3"
     })
 else
+    -- With Space Age, replication-3 is VISIBLE and unlocks the Chemical
+    -- Replicator (tier 3), which comes BEFORE the planets (tier 4). It also
+    -- serves as the sink for orphaned tier-3 unlocks (data-final-fixes PASS 3).
     table.insert(tech_list, {
         type = "technology",
         name = gprefix .. "replication-3",
         icon = "__dark-matter-replicators-reborn__/graphics/icons/replicator-3.png",
         icon_size = 64,
-        hidden = true,
-        effects = {},
+        effects = {
+            { type = "unlock-recipe", recipe = gprefix .. "replicator-3" }
+        },
         prerequisites = { gprefix .. "replication-2" },
         unit = make_research_unit(150, t3_packs, 30),
         order = "a-r-3"
@@ -105,6 +137,7 @@ end
 local rep_4_prereqs
 if mods["space-age"] then
     rep_4_prereqs = {
+        gprefix .. "replication-3",
         gprefix .. "replication-vulcanus-tech",
         gprefix .. "replication-fulgora-tech",
         gprefix .. "replication-gleba-tech",

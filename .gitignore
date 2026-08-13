@@ -1,0 +1,7 @@
+# Dev-only dirs — never published to portal or pushed to the repo
+/specs/
+/research/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

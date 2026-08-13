@@ -1,3 +1,4 @@
+require("defines")
 local resource_autoplace = require("resource-autoplace")
 resource_autoplace.initialize_patch_set(gprefix.."tenemut", true)
 
@@ -13,7 +14,8 @@ local autoplace_table = {
 	regular_rq_factor_multiplier = 1
 }
 
-if settings.startup["tenemut-near-spawn"].value == false then
+local spawn_setting = settings.startup["tenemut-near-spawn"]
+if spawn_setting and spawn_setting.value == false then
 	autoplace_table.has_starting_area_placement = false
 end
 

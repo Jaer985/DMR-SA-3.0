@@ -1,55 +1,13 @@
 require("defines")
 local helpers = require("lib.helpers")
-local DynamicGenerator = require("prototypes.recipes.dynamic-generator")
 
--- 1. Execute dynamic recipe generation and receive baseline and planetary unlocks
-local baseline_unlocks, planetary_unlocks = DynamicGenerator.generate()
+-- v3.7.0 (A6): Dynamic recipe generation MOVED to data-final-fixes.lua.
+-- It must run AFTER overhaul mods (Bob's, Angel's, K2) finish defining their
+-- recipes and unlock-recipe tech effects — in data-updates the recipe_tech_map
+-- was incomplete, silently skipping original-tech prereqs (118 items with
+-- Bob's) and under-tiering 367 items. See data-final-fixes.lua PASS 0.
 
--- 2. Dynamically attach baseline unlocks to their corresponding technology nodes
-for tier = 1, 5 do
-    local tech_name = gprefix .. "replication-" .. tier
-    local tech = data.raw.technology[tech_name]
-    local unlocks = baseline_unlocks[tier]
-
-    if tech and (not (tier == 3 and mods["space-age"])) and unlocks and #unlocks > 0 then
-        tech.effects = tech.effects or {}
-        for _, recipe_name in ipairs(unlocks) do
-            table.insert(tech.effects, { type = "unlock-recipe", recipe = recipe_name })
-        end
-    elseif tier == 3 and mods["space-age"] and unlocks and #unlocks > 0 then
-        -- Attach baseline Tier 3 unlocks to the three planetary technologies
-        local planetary_techs = {
-            gprefix .. "replication-vulcanus-tech",
-            gprefix .. "replication-fulgora-tech",
-            gprefix .. "replication-gleba-tech"
-        }
-        for _, p_tech_name in ipairs(planetary_techs) do
-            local p_tech = data.raw.technology[p_tech_name]
-            if p_tech then
-                p_tech.effects = p_tech.effects or {}
-                for _, recipe_name in ipairs(unlocks) do
-                    table.insert(p_tech.effects, { type = "unlock-recipe", recipe = recipe_name })
-                end
-            end
-        end
-    end
-end
-
--- 3. Dynamically attach planetary unlocks to their corresponding planetary technology nodes
-if mods["space-age"] and planetary_unlocks then
-    for planet, unlocks in pairs(planetary_unlocks) do
-        local tech_name = gprefix .. "replication-" .. planet .. "-tech"
-        local tech = data.raw.technology[tech_name]
-        if tech and unlocks and #unlocks > 0 then
-            tech.effects = tech.effects or {}
-            for _, recipe_name in ipairs(unlocks) do
-                table.insert(tech.effects, { type = "unlock-recipe", recipe = recipe_name })
-            end
-        end
-    end
-end
-
--- 4. Configure planet autoplace spawning for Tenemut
+-- 1. Configure planet autoplace spawning for Tenemut
 local spawning_planet_setting = settings.startup["tenemut-spawning-planet"]
 if spawning_planet_setting and spawning_planet_setting.value then
     local default_planet = string.lower(spawning_planet_setting.value)
@@ -65,11 +23,11 @@ if spawning_planet_setting and spawning_planet_setting.value then
             planet_def.map_gen_settings.autoplace_settings.entity.settings[gprefix .. "tenemut"] = {}
         end
     else
-        helpers.log("Unknown planet selected as starting planet: " .. default_planet)
+        helpers.warn("Unknown planet selected as starting planet: " .. default_planet)
     end
 end
 
--- 5. Map autoplace for other Space Age planets if configured
+-- 2. Map autoplace for other Space Age planets if configured
 if mods["space-age"] then
     local other_planets_setting = settings.startup["tenemut-other-planets"]
     if other_planets_setting and other_planets_setting.value ~= "None" then
@@ -92,7 +50,7 @@ if mods["space-age"] then
     end
 end
 
--- 6. Surface conditions and gravity restrictions (No replication in zero-gravity space unless configured)
+-- 3. Surface conditions and gravity restrictions (No replication in zero-gravity space unless configured)
 if mods["space-age"] then
     local space_repl_setting = settings.startup["replication-in-space"]
     if space_repl_setting and not space_repl_setting.value then
@@ -103,12 +61,15 @@ if mods["space-age"] then
             table.insert(lab.surface_conditions, { property = "gravity", min = 0.1 })
         end
 
-        -- Enforce gravity for all Replicator entities
+        -- Enforce gravity for all Replicator entities (Tiers 1-3 always require gravity; Tiers 4-5 bypass if Dyson Sphere mod is active)
+        local has_dyson = mods["slp-dyson-sphere-reworked"] ~= nil
         for i = 1, 5 do
             local assembler = data.raw["assembling-machine"][gprefix .. "replicator-" .. i]
             if assembler then
-                assembler.surface_conditions = assembler.surface_conditions or {}
-                table.insert(assembler.surface_conditions, { property = "gravity", min = 0.1 })
+                if not (has_dyson and (i == 4 or i == 5)) then
+                    assembler.surface_conditions = assembler.surface_conditions or {}
+                    table.insert(assembler.surface_conditions, { property = "gravity", min = 0.1 })
+                end
             end
         end
 
