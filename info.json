@@ -1,7 +1,7 @@
 {
   "name": "dark-matter-replicators-reborn",
-  "version": "3.7.1",
-  "factorio_version": "2.0",
+  "version": "4.0.0",
+  "factorio_version": "2.1",
   "title": "Dark Matter Replicators Reborn",
   "author": "Honktown, Nihilistzsche, Jaer985",
   "homepage": "https://github.com/Jaer985/dark-matter-replicators-reborn_3",
@@ -27,6 +27,16 @@
     "? bobvehicleequipment",
     "? bobinserters",
     "? bobenemies",
-    "? boblibrary"
+    "? boblibrary",
+    "? angelssmelting",
+    "? angelsrefining",
+    "? angelsindustries",
+    "? angelspetrochem",
+    "? angelsbioprocessing",
+    "? angelsaddons-storage",
+    "? angelsaddons-mobility",
+    "? angelsaddons-cab",
+    "? angelsaddons-bots",
+    "? Yuoki"
   ]
 }

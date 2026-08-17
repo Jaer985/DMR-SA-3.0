@@ -191,8 +191,19 @@ data:extend({
 		type = "string-setting",
 		order = "5-1",
 		setting_type = "startup",
-		allowed_values = { "Individual Technologies", "Base Game Technologies", "Grouped Categories" },
-		default_value = "Grouped Categories",
+		-- v4.0: Mirror (default) — árbol espejo: 1 tech por tech original del
+		-- juego, tier = science level de la tech original, prereq = tech
+		-- original + materials del tier. Individual (legacy) — 1 tech por item
+		-- como v3.7.x. Grouped Categories fue ELIMINADO en v4.0.
+		allowed_values = { "Mirror", "Individual" },
+		default_value = "Mirror",
+	},
+	{
+		name = "dmrsa-require-original-tech",
+		type = "bool-setting",
+		order = "5-1-b",
+		setting_type = "startup",
+		default_value = true,
 	},
 	{
 		name = "dmrsa-grouped-tech-cost-multiplier",

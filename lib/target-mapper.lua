@@ -238,6 +238,83 @@ local function is_eligible(name)
     return false
 end
 
+-- v4.0: "1-solo-uso / no producción masiva" exclusions (user-approved 2026-08-12).
+-- Weapons, armor, combat capsules, vehicles, vehicle equipment, and personal
+-- equipment are produced once and carried/equipped — replicating them adds no
+-- production value. KEPT (mass-use): ammo (aliens), fuel cells (reactors),
+-- seeds (Gleba agriculture), raw-fish (healing), solar panels + batteries.
+local VEHICLE_REGISTRIES = {
+    "car", "tank", "spider-vehicle", "locomotive",
+    "cargo-wagon", "fluid-wagon", "artillery-wagon"
+}
+local COMBAT_CAPSULE_PATTERNS = {
+    "grenade", "capsule", "explosives", "poison", "slowdown",
+    "defender", "distractor", "destroyer", "fire", "laser-robot"
+}
+local function is_v4_excluded(name, type_name)
+    -- 1. Weapons (gun) and armor
+    if type_name == "gun" or type_name == "armor" then
+        return true
+    end
+    -- 2. Combat capsules (grenades, poison, combat robots, cliff explosives)
+    if type_name == "capsule" then
+        for _, pat in ipairs(COMBAT_CAPSULE_PATTERNS) do
+            if string.find(name, pat) then return true end
+        end
+    end
+    -- 3. Vehicles / rolling stock (their item form is item-with-entity-data)
+    for _, reg_name in ipairs(VEHICLE_REGISTRIES) do
+        if data.raw[reg_name] and data.raw[reg_name][name] then
+            return true
+        end
+    end
+    -- 4. Vehicle equipment (Bob's bob-vehicle-*)
+    if string.sub(name, 1, 12) == "bob-vehicle-" then
+        return true
+    end
+    -- 5. Personal equipment EXCEPT solar panels and batteries (mass-use kept)
+    if string.find(name, "%-equipment$") then
+        if string.find(name, "solar") or string.find(name, "battery") then
+            return false
+        end
+        return true
+    end
+    -- NOTE (v4.0): a universal place_result exclusion was considered for Yuoki
+    -- but REJECTED — it would kill mass-use items (chests, inserters, pipes,
+    -- lamps, poles, belts) that must stay replicable. Yuoki machines are
+    -- handled per-item via YUOKI_EXCLUDED below.
+    -- 7. Yuoki Industries faction signs (v4.0): signs represent what other
+    -- factions are willing to do for you — faction currency, not production.
+    -- Upstream DMR explicitly set their replication cost to 0.
+    local YUOKI_SIGNS = {
+        "y_greensign", "y_rwtechsign", "ypfw_trader_sign", "ye_science_blue"
+    }
+    for _, s in ipairs(YUOKI_SIGNS) do
+        if name == s then return true end
+    end
+    -- 8. Yuoki Industries — per-item exclusions decided by Jaer985 (2026-08-14):
+    --   - Inserters: Bob's inserters already cover inserters; Yuoki's add no value
+    --   - Bunker storage: storage buildings, not production
+    --   - Basements: factorio-style buildings (one per base placement)
+    --   (Pendiente: procesado/refinado/mastercrafted/ultimate decidir poco a poco)
+    local YUOKI_EXCLUDED = {
+        -- Inserters
+        "y-inserter-s4", "y-inserter-smart-long", "y-inserter-smart",
+        "y_inserter_diagonal", "y_inserter_evade_shortL", "y_inserter_evade_shortR",
+        "y_inserter_smart_LL", "y_inserter_smart_RR",
+        "y_inserter_smart_leftR2", "y_inserter_smart_rightR2",
+        -- Storage
+        "y-rare-m1bunker-log",
+        -- Basements
+        "y_basement_4x4a", "y_basement_5x5a", "y_basement_5x5b", "y_basement_5x5c",
+        "y_basement_5x5d", "y_basement_5x5e", "y_basement_5x5f", "y_basement_5x5f2",
+    }
+    for _, s in ipairs(YUOKI_EXCLUDED) do
+        if name == s then return true end
+    end
+    return false
+end
+
 -- Safely maps out all potential replication targets
 function TargetMapper.get_potential_replication_targets()
     local targets = {}
@@ -255,7 +332,11 @@ function TargetMapper.get_potential_replication_targets()
                 local is_valid = true
 
                 -- Prevent self-replication/looping of mod items
-                if string.sub(name, 1, string.len(gprefix)) == gprefix then
+                -- EXCEPTION (v4.0): dmrsa-tenemut IS replicable — but only at
+                -- tier 5 ("Mastery of Dark Matter"). The mirror generator
+                -- forces its tier to 5, so it lands in the tier-5 baseline.
+                if string.sub(name, 1, string.len(gprefix)) == gprefix
+                   and name ~= gprefix .. "tenemut" then
                     is_valid = false
                 end
 
@@ -293,6 +374,14 @@ function TargetMapper.get_potential_replication_targets()
                 -- audit (2026-08-11) found dmrsa-repl-parameter-0..9 recipes
                 -- generated from these.
                 if is_valid and string.find(name, "^parameter%-%d+$") then
+                    is_valid = false
+                end
+
+                -- v4.0: 1-solo-uso / no producción masiva exclusions
+                -- (weapons, armor, combat capsules, vehicles, vehicle +
+                -- personal equipment; ammo/fuel-cells/seeds/raw-fish/solar/
+                -- batteries stay).
+                if is_valid and is_v4_excluded(name, category) then
                     is_valid = false
                 end
 

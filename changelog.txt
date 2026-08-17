@@ -1,4 +1,68 @@
 ---------------------------------------------------------------------------------------------------
+Version: 4.0.0
+Date: 2026-08-12
+  Features:
+    - Factorio 2.1 ONLY (drops 2.0 support): recipes use the 2.1 `categories`
+      array format; the dual-compat dmrsa_is_v21() detection was removed.
+    - NEW replication system — Mirror tree: one replication technology per
+      ORIGINAL game technology ("Replication: Logistic System" unlocks the
+      replication recipes of every item that tech unlocks). Grouped Categories
+      mode removed; categories remain only as visual subgroups in the menu.
+    - Tier of each mirror tech = science level of its original tech
+      (automation=1, military=2, chemical/prod/util=3, planetary=4,
+      space/cryo=5). Fixes endgame items appearing at low tiers (dump-verified:
+      requester-chest 3→5, mech-armor 4→5, nuclear-fuel 4→5...).
+    - New progression chain: machine → replication-materials-N → mirror techs.
+      Five materials techs (one per tier, researched with tenemut/scoop/
+      transducer/conduit) unlock the tier's base materials (ores, fluids,
+      plates, vanilla basics without an original tech) and gate every mirror
+      tech of that tier. You cannot replicate items until you know their base
+      materials.
+    - New setting dmrsa-require-original-tech (default ON): replicating an item
+      requires first researching its original unlock technology. Disable to
+      allow replication from the tier machine alone.
+    - v4.0 exclusions (144 items): weapons, armor, combat capsules, vehicles,
+      vehicle equipment, and personal equipment (except solar panels and
+      batteries) are no longer replication targets — they are one-time
+      production items, not mass-use materials. Ammo (alien defense), fuel
+      cells, seeds and raw-fish remain replicable.
+    - dmrsa-tech-distribution setting now offers Mirror (default) / Individual
+      (legacy v3.x behavior). Individual mode keeps the per-item tech tree.
+  Bugfixes:
+    - Factorio 2.1 API fix: assembler2pipepictures() was removed as a global
+      function — it is now a data table in the base assembler-pictures module
+      (prototypes/entity/assembler-pictures.lua). Replicator and planetary
+      replicator entities now reference it via __base__/ require without
+      parentheses. Previously the entity file failed to load silently
+      (safe_require), which left the replication-lab ITEM undefined and
+      crashed assignID with "item with name 'dmrsa-replication-lab' does not
+      exist".
+    - Non-contiguous technology levels fix: when dmrsa-require-original-tech
+      is ON, each mirror tech takes its original tech as a DIRECT prereq, so
+      its tier must be at least the original tech's REAL depth in the research
+      tree. Science-pack level can be shallower than tree depth (e.g. angel's
+      chlorine-processing maps to tier 2-3 by packs but sits at depth 4),
+      which Factorio rejected with "Non-contiguous levels: 2, followed by 4".
+      MirrorGenerator now clamps the mirror tier to max(science level, tree
+      depth) via a memoized, cycle-safe get_tech_tree_depth().
+    - Angel's optional dependencies added to info.json (? angelssmelting,
+      ? angelsrefining, ? angelsindustries, ? angelspetrochem,
+      ? angelsbioprocessing, ? angelsaddons-*) — same load-order pattern as
+      Bob's (A5). Without them DMR's data-final-fixes could run BEFORE Angel's,
+      so the tree-depth calculation saw incomplete prereqs and mirror tiers
+      stayed too low (the Non-contiguous fix depends on complete data).
+    - Leveled-tech chains (angels-chlorine-processing-1..4, bob-*-N, etc.)
+      now generate ONE mirror tech per chain instead of one per level.
+      Factorio treats "-N" suffixed techs as LEVELS of a single base tech, so
+      per-level mirrors collapsed into a composite tech whose levels must be
+      contiguous; when a middle level unlocked no replicable items its mirror
+      was skipped, breaking the chain with "Non-contiguous levels: 2, followed
+      by 4". The generator normalizes "-N" to the base name, groups the whole
+      chain into one mirror tech, and uses the DEEPEST existing level as the
+      original-tech prerequisite (also fixes the string.find capture that made
+      the depth tie-breaker a no-op).
+
+---------------------------------------------------------------------------------------------------
 Version: 3.7.1
 Date: 2026-08-12
   Bugfixes:

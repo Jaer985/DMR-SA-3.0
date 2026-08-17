@@ -174,4 +174,31 @@ table.insert(tech_list, {
     order = "a-r-5"
 })
 
+-- v4.0: Materials techs (one per tier) — the bridge between the machine and
+-- the mirror techs. Each unlocks the BASE MATERIALS of its tier (ores, fluids,
+-- plates, vanilla basics that have no original unlock tech) and is a prereq of
+-- every mirror tech of that tier. Philosophy: you cannot replicate items until
+-- you know their base materials. Research pack = the tier's DMR intermediate.
+-- Effects are filled dynamically by MirrorGenerator.generate() (data-final-fixes
+-- PASS 0) with the baseline recipes.
+local materials_defs = {
+    { tier = 1, pack = gprefix .. "tenemut", count = 30 },
+    { tier = 2, pack = gprefix .. "dark-matter-scoop", count = 40 },
+    { tier = 3, pack = gprefix .. "dark-matter-transducer", count = 50 },
+    { tier = 4, pack = gprefix .. "matter-conduit", count = 60 },
+    { tier = 5, pack = gprefix .. "matter-conduit", count = 70 },
+}
+for _, def in ipairs(materials_defs) do
+    table.insert(tech_list, {
+        type = "technology",
+        name = gprefix .. "replication-materials-" .. def.tier,
+        icon = "__dark-matter-replicators-reborn__/graphics/icons/matter-conduit.png",
+        icon_size = 64,
+        effects = {},  -- filled in data-final-fixes with baseline recipes
+        prerequisites = { gprefix .. "replication-" .. def.tier },
+        unit = make_research_unit(def.count, { def.pack }, 30),
+        order = "a-r-m-" .. def.tier
+    })
+end
+
 data:extend(tech_list)

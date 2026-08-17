@@ -26,37 +26,50 @@ local helpers = require("lib.helpers")
 --      assigned 1, real 4; ...).
 -- Optional dependencies in info.json (? bobplates, ? bobwarfare, ...) force
 -- THIS data-final-fixes to run after the overhaul mods' own.
-local DynamicGenerator = require("prototypes.recipes.dynamic-generator")
-local baseline_unlocks, planetary_unlocks = DynamicGenerator.generate()
+-- v4.0: choose the generator by tech-distribution setting.
+--   "Mirror" (default) → MirrorGenerator (árbol espejo: 1 tech por tech original,
+--     materials techs, tier = science level de la tech original)
+--   "Individual" (legacy) → DynamicGenerator (1 tech por item, como v3.7.x)
+-- The grouped-categories mode was REMOVED in v4.0.
+local tech_dist = helpers.get_startup_setting("dmrsa-tech-distribution", "Mirror")
+local planetary_unlocks
+if tech_dist == "Individual" then
+    local DynamicGenerator = require("prototypes.recipes.dynamic-generator")
+    local baseline_unlocks = DynamicGenerator.generate()
+    -- Attach baseline unlocks to their corresponding technology nodes
+    for tier = 1, 5 do
+        local tech_name = gprefix .. "replication-" .. tier
+        local tech = data.raw.technology[tech_name]
+        local unlocks = baseline_unlocks[tier]
 
--- Attach baseline unlocks to their corresponding technology nodes
-for tier = 1, 5 do
-    local tech_name = gprefix .. "replication-" .. tier
-    local tech = data.raw.technology[tech_name]
-    local unlocks = baseline_unlocks[tier]
-
-    if tech and (not (tier == 3 and mods["space-age"])) and unlocks and #unlocks > 0 then
-        tech.effects = tech.effects or {}
-        for _, recipe_name in ipairs(unlocks) do
-            table.insert(tech.effects, { type = "unlock-recipe", recipe = recipe_name })
-        end
-    elseif tier == 3 and mods["space-age"] and unlocks and #unlocks > 0 then
-        -- Attach baseline Tier 3 unlocks to the three planetary technologies
-        local planetary_techs = {
-            gprefix .. "replication-vulcanus-tech",
-            gprefix .. "replication-fulgora-tech",
-            gprefix .. "replication-gleba-tech"
-        }
-        for _, p_tech_name in ipairs(planetary_techs) do
-            local p_tech = data.raw.technology[p_tech_name]
-            if p_tech then
-                p_tech.effects = p_tech.effects or {}
-                for _, recipe_name in ipairs(unlocks) do
-                    table.insert(p_tech.effects, { type = "unlock-recipe", recipe = recipe_name })
+        if tech and (not (tier == 3 and mods["space-age"])) and unlocks and #unlocks > 0 then
+            tech.effects = tech.effects or {}
+            for _, recipe_name in ipairs(unlocks) do
+                table.insert(tech.effects, { type = "unlock-recipe", recipe = recipe_name })
+            end
+        elseif tier == 3 and mods["space-age"] and unlocks and #unlocks > 0 then
+            -- Attach baseline Tier 3 unlocks to the three planetary technologies
+            local planetary_techs = {
+                gprefix .. "replication-vulcanus-tech",
+                gprefix .. "replication-fulgora-tech",
+                gprefix .. "replication-gleba-tech"
+            }
+            for _, p_tech_name in ipairs(planetary_techs) do
+                local p_tech = data.raw.technology[p_tech_name]
+                if p_tech then
+                    p_tech.effects = p_tech.effects or {}
+                    for _, recipe_name in ipairs(unlocks) do
+                        table.insert(p_tech.effects, { type = "unlock-recipe", recipe = recipe_name })
+                    end
                 end
             end
         end
     end
+else
+    -- v4.0 MIRROR mode: MirrorGenerator handles recipes, mirror techs, AND the
+    -- materials-tech baseline attachment internally. Returns planetary unlocks.
+    local MirrorGenerator = require("lib.mirror-generator")
+    planetary_unlocks = MirrorGenerator.generate()
 end
 
 -- Attach planetary unlocks to their corresponding planetary technology nodes
@@ -288,72 +301,14 @@ if empty_category_count > 0 then
     helpers.info("data-final-fixes: hid " .. empty_category_count .. " empty replication category subgroup(s).")
 end
 
--- ── PASS 6: Re-attach original unlock-tech prereqs (v3.7.0 A4) ──
--- The dynamic generator runs in data-updates, BEFORE overhaul mods (Bob's,
--- Angel's, K2) finish defining their unlock-recipe tech effects (those are
--- added in the mods' own data-updates/data-final-fixes). As a result, the
--- recipe_tech_map built at generation time is incomplete: with Bob's, 118
--- items got DMR techs whose ONLY prereq is the replicator tier — the original
--- research (bob-brass-processing for bob-brass-chest, defender for
--- bob-defender-robot, bob-walking-vehicle for bob-mech-brain, ...) was
--- silently skipped, letting players replicate mid/endgame items from the
--- tier-1 replicator.
--- This pass REBUILDS the maps from the FINAL data and re-attaches the missing
--- original tech as a prereq on every DMR tech that should have it.
--- Relies on info.json optional dependencies (? bobplates, ? bobwarfare, ...)
--- to force this data-final-fixes to run AFTER the overhaul mods' own.
--- NOTE: we must NOT resolve the source recipe via CostSolver.recipe_map here —
--- by data-final-fixes the dmrsa-repl-* recipes (0 ingredients) already exist
--- and build_recipe_map prefers the fewest-ingredient recipe, so the map would
--- resolve to OUR OWN replication recipe, producing a self-prereq cycle.
--- Resolve by exact name (data.raw.recipe[item]) — the vanilla/mod recipe that
--- carries the unlock-recipe effect we want.
-local CostSolver = require("lib.cost-solver")
-CostSolver.build_tech_map()
-
-local reattached_count = 0
-for tech_name, tech in pairs(data.raw.technology) do
-    if string.find(tech_name, "^" .. prefix_pat) and tech.effects then
-        -- Collect the original techs this DMR tech should be gated behind.
-        -- For individual techs (dmrsa-tech-repl-<item>-tech) the recipe name
-        -- encoded in the effects is dmrsa-repl-<item>; derive the source item
-        -- and look up ITS original unlock tech in the (now complete) map.
-        local missing_orig = {}
-        for _, eff in ipairs(tech.effects) do
-            if eff.type == "unlock-recipe" and eff.recipe then
-                local src_item = nil
-                -- dmrsa-repl-<item> → <item>
-                if string.sub(eff.recipe, 1, string.len(gprefix .. "repl-")) == (gprefix .. "repl-") then
-                    src_item = string.sub(eff.recipe, string.len(gprefix .. "repl-") + 1)
-                end
-                if src_item then
-                    -- Prefer the exact-name recipe (the mod's own recipe that
-                    -- the original tech unlocks). Never our dmrsa-repl-* recipe.
-                    local orig_recipe = data.raw.recipe[src_item]
-                    if orig_recipe then
-                        local orig_tech = CostSolver.recipe_tech_map[orig_recipe.name]
-                        if orig_tech and not orig_tech.hidden and data.raw.technology[orig_tech.name] then
-                            missing_orig[orig_tech.name] = true
-                        end
-                    end
-                end
-            end
-        end
-        -- Add any that are not already in the prereq list
-        for orig_name in pairs(missing_orig) do
-            local present = false
-            for _, p in ipairs(tech.prerequisites or {}) do
-                if p == orig_name then present = true; break end
-            end
-            if not present then
-                tech.prerequisites = tech.prerequisites or {}
-                table.insert(tech.prerequisites, orig_name)
-                reattached_count = reattached_count + 1
-                helpers.log("data-final-fixes: Re-attached original tech prereq '" .. orig_name .. "' to '" .. tech_name .. "'")
-            end
-        end
-    end
-end
-if reattached_count > 0 then
-    helpers.info("data-final-fixes: Re-attached " .. reattached_count .. " missing original-tech prereq(s).")
-end
+-- ── PASS 6: REMOVED in v4.0 ──
+-- The v3.7.0 A4 re-attach pass rebuilt recipe_tech_map from final data and
+-- re-added missing original-tech prereqs. In v4.0 MIRROR mode this is no
+-- longer needed: MirrorGenerator.generate() runs in data-final-fixes (after
+-- all mods' data-updates/data-final-fixes thanks to the ? bob* optional deps),
+-- builds its reverse map from the COMPLETE technology data, and each mirror
+-- tech's prereq IS the original tech itself (when dmrsa-require-original-tech
+-- is ON). The old failure mode (generation before other mods define their
+-- unlock effects) cannot happen because we now generate from final data.
+-- In legacy Individual mode, DynamicGenerator attaches original-tech prereqs
+-- inline exactly as v3.7.x did.

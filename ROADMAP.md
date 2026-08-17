@@ -1,7 +1,8 @@
 # DMR — Roadmap
 
-_Estado del fork: Post 3.0 (Jaer985) — Base: Factorio 2.0+ con soporte Space Age_
-_Última versión publicada: 3.7.1 (2026-08-12) — robustez de balance multi-mod (A1-A6, B1-B5, C1, D1-D3) + hotfix factorissimo_
+_Estado del fork: Post 3.0 (Jaer985) — Base: Factorio 2.1 (solo 2.1 desde v4.0)_
+_Última versión publicada: 4.0.0 (2026-08-14) — árbol espejo + Factorio 2.1 (gate test superado, publicado al portal)_
+_En desarrollo: — (v4.0.0 publicado; candidatos: Quality support, Yuoki 2.1)_
 
 > El antiguo `roadmap.txt` del upstream (nihilistzsche / Honktown) está congelado en la era 0.17/0.18 y ya no aplica. Este documento es la fuente viva de planes para el fork moderno.
 
@@ -217,6 +218,21 @@ Objetivo: que DMR siga balanceado con cualquier modlist de overhaul (Bob's/Angel
 
 ## 🟢 v3.7.0+ — Features mayores (ordenar por valor)
 
+- [x] **v4.0 — Árbol espejo + Factorio 2.1 (IMPLEMENTADO, GATE TEST SUPERADO y PUBLICADO al portal 2026-08-14)** — rediseño del sistema de techs/tiempos:
+  - **factorio_version → 2.1** (drops 2.0, elimina dual-compat `dmrsa_is_v21()`, recipes usan `categories = {...}` directo)
+  - **Sistema: árbol espejo con umbral 1** — cada tech original del juego genera su tech de replicación ("Replication: Logistic System" desbloquea requester-chest/buffer-chest/etc.). Grouped por categoría eliminado; categorías quedan solo como subgroups visuales.
+  - **Tier de cada espejo = science level de su tech original** (automation=1, military=2, chemical/prod/util=3, planetary=4, space/cryo=5) — corrige los 25 offenders endgame en tier 3 (dump-verificado: requester-chest 3→5, mech-armor 4→5...)
+  - **Cadena de progresión: máquina → materials-N → espejo** — 5 techs nuevas `replication-materials-N` (una por tier, pack = tenemut/scoop/transducer/conduit) que desbloquean los materiales base del tier (88 items sin tech original) y son prereq de las techs espejo de ese tier. Filosofía: no replicas sin conocer los materiales.
+  - **Tenemut replicable SOLO a tier 5** (2026-08-14): excepción en target-mapper anti-loop + force tier 5 en el generador — "dominio de la materia oscura". El resto de items dmrsa- (scoop/transducer/conduit/lab/replicadores) NO se replica.
+  - **Renaming parcial (2026-08-14)**: solo `matter-conduit` → "Nanophase Conduit" (EN) / "Conducto nanofase" (ES). El resto de materiales mantiene su nombre (scoop/transducer/tenemut) — el renaming completo no convenció y se descartó.
+  - **Descartado (2026-08-14)**: generación de iconos/imágenes con IA (Gemini/Canva) — los resultados no cuadran con el estilo Factorio (cartoon/3D). También descartadas las referencias de lore para IA y la investigación de vías free (el coder ya respondió la tarea, sin más acción).
+  - **Exclusiones (144 items)**: armas, armaduras, capsules de combate, vehículos, equipo de vehículo, equipo personal EXCEPTO solar/baterías. Se quedan: munición (uso masivo aliens), fuel cells, seeds, raw-fish.
+  - **Números (dump 3.7.1, Bob's+SA)**: 945 items → 144 excluidos → 801 replicables → 417 techs espejo + 5 materials + 4 planetary = ~426 techs
+  - **Settings**: `require-original-tech` (prereq tech original ON/OFF); sample-based (opción A) como modo futuro
+  - **Fixes 2.1 aplicados**: `__base__/` require de assembler-pictures (assembler2pipepictures ya no es función global), tree-depth clamp anti "Non-contiguous levels", deps opcionales Angel's en info.json (load-order), cadenas de techs `-N` normalizadas a UNA tech espejo por cadena
+  - **Respaldo**: `backups/dark-matter-replicators-reborn_3.7.1-source-backup.tar.gz` (punto de reversión)
+- [ ] **Compatibilidad Yuoki Industries (PAUSA registrada 2026-08-14 — se retoma cuando Yuoki esté actualizado a 2.1 y en la modlist)** — análisis previo: 275 items, 112 máquinas con place_result. YA implementado: `? Yuoki` en info.json (load-order), blacklist `YUOKI_EXCLUDED` en target-mapper (10 inserters → cubiertos por Bob's inserters, 1 bunker storage, 8 basements), 4 faction signs excluidos (y_greensign/y_rwtechsign/ypfw_trader_sign/ye_science_blue). Pendiente decisión usuario item por item: procesado (16: y-crusher, y-dirtwasher, y-mining-drill, y-atomic-constructor, y_crystalizer, y_smelter, y_trockner...), refinado (5: y-water-gen, y_hppump, y_mixer_emu, y_water_mixer), mastercrafted (8: y_boiler4_mc, y_steam_turbine_mc, y_mc_*), ultimate (6: y-alien-infuser, y-fame, y-stargate, y_trade_ultimate), sueltos (y_c22, y_cg33, y_sc11, y_sc44, y_pc22, y_rc22, y_bc22, y_block_cold/heat, y_steinmehl, yi_graphite, y-seg-p, y_bg-1). NOTA: el filtro universal `place_result` se REVERTIÓ — mataba items de uso masivo (chests, pipes, lamps, poles, belts) que deben seguir replicables; las máquinas Yuoki se manejan per-item.
+- [ ] **Quality support (NO se replica actualmente)** — el mod no replica items con calidad por ahora. Pendiente de brainstorming: items quality como targets, calidad del output del replicador (¿replicar normal y subir con módulos de calidad?), módulos de calidad en el replicador, interacción con el Quality mod de SA. (Anotado 2026-08-12 por Jaer985)
 - [ ] **Compatibilidad explícita con PyMods / otros frameworks de scripting** — detectar vía `script.on_load` si hay mods Python activos
 - [ ] **Replicación de OmniMatter + recipe tenemut-from-omnite** (pendiente upstream)
 - [ ] **Replicación de Darkstar Utilities** (cuando ese mod sea compatible con 2.x)

@@ -88,7 +88,11 @@ for tier = 1, 5 do
         fluid_boxes = {
             {
                 production_type = "output",
-                pipe_picture = assembler2pipepictures(),
+                -- v4.0 (2.1 fix): assembler2pipepictures is no longer a global
+                -- function — it's a data table in the base assembler-pictures
+                -- module. Referenced via __base__/ require without parens
+                -- (same pattern Bob's 3.0.1 uses on 2.1).
+                pipe_picture = require("__base__/prototypes/entity/assembler-pictures").assembler2pipepictures,
                 pipe_covers = pipecoverspictures(),
                 base_area = 10,
                 base_level = 1,

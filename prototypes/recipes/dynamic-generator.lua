@@ -259,9 +259,12 @@ function DynamicGenerator.generate()
 
     -- Retrieve settings safely
     local fluid_qty = helpers.get_startup_setting("replication-fluid-quantity", 25)
-    local tech_dist = helpers.get_startup_setting("dmrsa-tech-distribution", "Grouped Categories")
-    local use_individual_techs = (tech_dist == "Individual Technologies")
-    local use_grouped_techs = (tech_dist == "Grouped Categories")
+    -- v4.0: tech-distribution is "Mirror" (default, handled by MirrorGenerator)
+    -- or "Individual" (legacy, this file). Grouped Categories was removed.
+    -- This legacy generator only runs for Individual.
+    local tech_dist = helpers.get_startup_setting("dmrsa-tech-distribution", "Mirror")
+    local use_individual_techs = (tech_dist == "Individual")
+    local use_grouped_techs = false
     local group_accum = {}
 
     -- Track recipes to unlock via baseline replication technologies (fallback when individual techs is disabled)
@@ -456,12 +459,8 @@ function DynamicGenerator.generate()
                 subgroup = recipe_subgroup,
                 order = "z[" .. name .. "]"
             }
-            -- Dual-compat: 2.1 uses categories array, 2.0 uses category string
-            if dmrsa_is_v21() then
-                repl_recipe.categories = { category }
-            else
-                repl_recipe.category = category
-            end
+            -- v4.0: Factorio 2.1 format — categories array (no dual-compat)
+            repl_recipe.categories = { category }
 
             if name == "promethium-science-pack" then
                 repl_recipe.surface_conditions = {

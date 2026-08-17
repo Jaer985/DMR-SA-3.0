@@ -56,7 +56,10 @@ local function make_planetary_replicator(name_suffix, speed, power_mw, tint_colo
         fluid_boxes = {
             {
                 production_type = "output",
-                pipe_picture = assembler2pipepictures(),
+                -- v4.0 (2.1 fix): assembler2pipepictures is now a data table
+                -- in the base assembler-pictures module, not a global function.
+                -- __base__/ prefix required when requiring from another mod.
+                pipe_picture = require("__base__/prototypes/entity/assembler-pictures").assembler2pipepictures,
                 pipe_covers = pipecoverspictures(),
                 base_area = 10,
                 base_level = 1,
