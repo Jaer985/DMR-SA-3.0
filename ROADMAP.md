@@ -1,8 +1,8 @@
 # DMR — Roadmap
 
 _Estado del fork: Post 3.0 (Jaer985) — Base: Factorio 2.1 (solo 2.1 desde v4.0)_
-_Última versión publicada: 4.0.0 (2026-08-14) — árbol espejo + Factorio 2.1 (gate test superado, publicado al portal)_
-_En desarrollo: — (v4.0.0 publicado; candidatos: Quality support, Yuoki 2.1)_
+_Última versión publicada: 4.2.0 (2026-08-23) — Quality Refiner (4.1.0) + rebalance B1/B2 + fixes del gate test en modlist real de 138 mods_
+_En desarrollo: v4.2.0 (2026-08-22) — baseline inflado (Fix 1-3) + B1 (techs espejo por nivel) + B2 (rebalance de costos completo + refino original) + B3/B4/B5 + Quality Refiner (4.1). Pendiente gate test → publicación._
 
 > El antiguo `roadmap.txt` del upstream (nihilistzsche / Honktown) está congelado en la era 0.17/0.18 y ya no aplica. Este documento es la fuente viva de planes para el fork moderno.
 
@@ -157,19 +157,19 @@ _En desarrollo: — (v4.0.0 publicado; candidatos: Quality support, Yuoki 2.1)_
 
 ## 🔴 v3.5.x — Patch series
 
-### v3.5.2 — ✅ Released 2026-08-09
+### v3.5.2 — ✅ Released 2026-08-09 (superseded por v3.7.0/v4.0)
 - [x] Fix tier 3 reassignment en PASS 3 con SA (unlocks antes discarded, ahora van a `dmrsa-replication-3` placeholder)
 - [x] Warning defensivo en PASS 3 cuando un orphan no matchea ningún pattern
-- [ ] **Test runtime con Space Age puro + Krastorio 2** — pendiente validar en juego
-- [ ] **Auditar PASS 1 y PASS 2** — pendiente segunda pasada con misma óptica
+- [x] Test runtime con Space Age puro + Krastorio 2 — cubierto por gates 3.6.0/4.0.0
+- [x] Auditar PASS 1 y PASS 2 — absorbido por A4/A5/A6 (v3.7.0)
 
 ### v3.5.3 — ✅ Released 2026-08-09
 - [x] Settings UX + localization overhaul (todos los items arriba)
 
-### v3.5.4 — Próximo
-- [ ] **Test runtime con Space Age puro + Krastorio 2** (carry-over de v3.5.2)
-- [ ] **Auditar PASS 1 y PASS 2** (carry-over de v3.5.2)
-- [ ] **Verificar machine efficiency con space-age machines** — foundry, electromagnetic plant, cryogenic plant. Si no están en el mapeo, agregar al cost-solver
+### v3.5.4 — ✅ Released 2026-08-09 (superseded por v3.6.0+)
+- [x] Test runtime con Space Age puro + Krastorio 2 (carry-over de v3.5.2) — cubierto por los gates 3.6.0/4.0.0
+- [x] Auditar PASS 1 y PASS 2 (carry-over de v3.5.2) — absorbido por A4/A5/A6 (v3.7.0 PASS 0 + PASS 6)
+- [x] Verificar machine efficiency con space-age machines — ✅ v3.5.20: nombres SA corregidos (metallurgy/electromagnetics/cryogenics/organic)
 
 ---
 
@@ -232,13 +232,23 @@ Objetivo: que DMR siga balanceado con cualquier modlist de overhaul (Bob's/Angel
   - **Fixes 2.1 aplicados**: `__base__/` require de assembler-pictures (assembler2pipepictures ya no es función global), tree-depth clamp anti "Non-contiguous levels", deps opcionales Angel's en info.json (load-order), cadenas de techs `-N` normalizadas a UNA tech espejo por cadena
   - **Respaldo**: `backups/dark-matter-replicators-reborn_3.7.1-source-backup.tar.gz` (punto de reversión)
 - [ ] **Compatibilidad Yuoki Industries (PAUSA registrada 2026-08-14 — se retoma cuando Yuoki esté actualizado a 2.1 y en la modlist)** — análisis previo: 275 items, 112 máquinas con place_result. YA implementado: `? Yuoki` en info.json (load-order), blacklist `YUOKI_EXCLUDED` en target-mapper (10 inserters → cubiertos por Bob's inserters, 1 bunker storage, 8 basements), 4 faction signs excluidos (y_greensign/y_rwtechsign/ypfw_trader_sign/ye_science_blue). Pendiente decisión usuario item por item: procesado (16: y-crusher, y-dirtwasher, y-mining-drill, y-atomic-constructor, y_crystalizer, y_smelter, y_trockner...), refinado (5: y-water-gen, y_hppump, y_mixer_emu, y_water_mixer), mastercrafted (8: y_boiler4_mc, y_steam_turbine_mc, y_mc_*), ultimate (6: y-alien-infuser, y-fame, y-stargate, y_trade_ultimate), sueltos (y_c22, y_cg33, y_sc11, y_sc44, y_pc22, y_rc22, y_bc22, y_block_cold/heat, y_steinmehl, yi_graphite, y-seg-p, y_bg-1). NOTA: el filtro universal `place_result` se REVERTIÓ — mataba items de uso masivo (chests, pipes, lamps, poles, belts) que deben seguir replicables; las máquinas Yuoki se manejan per-item.
-- [ ] **Quality support (NO se replica actualmente)** — el mod no replica items con calidad por ahora. Pendiente de brainstorming: items quality como targets, calidad del output del replicador (¿replicar normal y subir con módulos de calidad?), módulos de calidad en el replicador, interacción con el Quality mod de SA. (Anotado 2026-08-12 por Jaer985)
+- [x] **v4.2.0 (2026-08-22) — Fix de baseline inflado (dump 4.1.0, modlist 138 mods)** — `materials-1` desbloqueaba 108 items (vs 16 del diseño). Causa raíz: el mirror asumía item↔recipe-name 1:1; los outputs de proceso de Angel's/planetaris (angels-gas-*, angels-mineral-sludge, geodes, crystals) no tienen recipe homónima → caían al baseline. 
+  - **Fix 1 (mirror)**: los outputs heredan la tech de su recipe productora del MISMO mod (guardas: no-minable, mismo prefijo de mod, excluye recycling/barreling) → materiales-1 108→30, espejo 1328→1497 techs.
+  - **Fix 2 (cost-solver)**: `MOD_ORE_TIERS` ahora es override **UNIVERSAL** (piso en todos los retornos de solve_cost, no solo el fallback de recursos) + tabla ampliada (angels-ore1..9→2, fluorite/manganese→3, chrome/thorium→4, platinum→5, planetaris gems/metales, sphalerite/tetrahedrite→2, vaterite→3, gold-ore→4).
+  - **Pitfall Lua documentado en skill**: `-` es cuantificador lazy en patterns → los patrones con guiones deben escaparse `%-`; el override elige el match MÁS LARGO ("angels-platinum-ore" contiene "tin").
+  - Tests: 143 checks (9 fixtures nuevos de ore-path en run_tests).
+  - **Fix 3 (audit profundo 9 subagentes, 2026-08-22)**: equipos Bob's versionados (-equipment-2..6, 13) ahora excluidos; mis-ruteos corregidos: spaceship-scrap→espacio (NO fulgora), foundry/lava→vulcanus, carbon→space-platform, burner-pumpjack→baseline; factory-circuit-connector + bob-spidertron-cannon excluidos. (Los robots de combate que Fix 3 excluyó se REVIERTEN al mismo día por decisión B5 — ver abajo.) Tests 171 checks.
+- [x] **Quality support (IMPLEMENTADO 2026-08-16 como Quality Refiner)** — diseñado con brainstorming balanceado y fiel: el replicador normal NO produce calidad (setting `dmrsa-replicator-quality` default "Normal only"; las replication recipes llevan `quality = "normal"`); la calidad llega por el **Refinador DMR** (`dmrsa-refiner`), una máquina dedicada que sube items replicables +1 grado (nunca salta): chance decreciente por grado (1%→uncommon, 0.5%→rare, 0.25%→epic, 0.1%→legendary), energía ×3 de la repl recipe (v4.2: era ×10, inoperable con la reescala — ahora 4MW), 5% de pérdida del item, y reintento con el mismo item el resto. Solo items replicables (arma/vehículos fuera — el refiner refina lo que la red domina). Tech propia `dmrsa-replication-refining` (materials-5 + quality vanilla). Sin modules en el refiner (la probabilidad ES el balance). Placeholder gráfico: assembler-1 2.x con tint violeta/obsidiana (dimensiones reales del dump, no memoria). Solo existe con mod de calidad activo. Tests 41/41 (test_refiner.lua). (Los items quality como targets quedaron DESCARTADOS técnicamente: el engine expande calidad DESPUÉS de los data stages — inviable en data-final-fixes.)
+- [x] **REBALANCE B2 — Escala de costos (IMPLEMENTADO 2026-08-22, REFINADO + REFINO ORIGINAL)**: tiempos = clamp( min(vanilla, solver) × CT(3-7x) × máquina×por-tier (1.5-3.5x), bandas FIJAS 2.7-16/5.3-32/10.6-64/20-120/33.3-200 ) con clamp sobre el LOTE de fluidos; **speed_factor 1.6**; **kW 1/3/8/15/30 MW** (misma energía/recipe); planetarios 40/80 MW; refiner ×3 + 4MW; cross-tier recursivo confirmado; cap de dificultad inactivo. **Refino original (estudio upstream 2.0.4 — research/dmr-original-mod-study.md)**: replicadores 1-5 replicables (tier propio); rareza de ores dinámicos (mining_time×2 al coste); research SIN ×item_count (materials-1 250→10 reps); quitado productivity de allowed_effects (exploit 0-ingredientes, incl. planetarios); penalty +0.5 FIJO (suma, fiel al original — el setting dmrsa-cost-calculation-method quedó sin efecto y marcado legacy en locale EN/ES). 171 tests PASS.
+  - ⏳ **CIERRE DEL PAQUETE B2 (pendiente si el usuario quiere)**: revisar el multiplicador de máquina por tier con más datos (¿1.5-3.5x es el spread correcto?) y el comportamiento planetario en gate test real. También anotado del estudio original: equipo personal (original replica mech-armor), science packs t3-5, módulos t4-5 — decisiones del usuario actuales, no tocar sin pedir.
+- [x] **REBALANCE B1 — Separar techs espejo por nivel en cadenas saturadas (DECIDIDO 2026-08-22 = opción C, IMPLEMENTADO)**: generar espejos por tier SOLO en las cadenas saturadas (automation, logistics, logistic-system, bob-robo-modular, angels-metallurgy, angels-advanced-chemistry, angels-nitrogen-processing) — las 10 candidatas se redujeron a 7 tras el dump (bob-oil-processing no existe, angels-oil-processing y bob-electronics no tienen niveles). Resolviendo los niveles huecos: verificados — todos los niveles de las 7 cadenas tienen ≥1 item replicable (sin huecos → sin riesgo "Non-contiguous").
+  - **IMPLEMENTADO 2026-08-22 (v4.2)**: 7 cadenas separadas (las 10 candidatas se redujeron a 7 tras el dump: bob-oil-processing no existe, angels-oil-processing y bob-electronics no tienen niveles). Espejos 466→492 (+26). Cada mirror-N gateado por el tier del COST-SOLVER de sus items (no por la science level de la tech original) — asm-6 detrás de replication-4, belts rojas/azules separadas. Efecto colateral documentado: `angels-advanced-chemistry-1` mezcla 6 items tier1 + 1 tier3 → el mirror queda tier 3 (max) — la chem básica de Angel's se retrasa a materials-3 (aceptado, progresión química).
 - [ ] **Compatibilidad explícita con PyMods / otros frameworks de scripting** — detectar vía `script.on_load` si hay mods Python activos
 - [ ] **Replicación de OmniMatter + recipe tenemut-from-omnite** (pendiente upstream)
-- [ ] **Replicación de Darkstar Utilities** (cuando ese mod sea compatible con 2.x)
+- [ ] **Replicación de Darkstar Utilities** — ❌ NO ENCONTRADO (2026-08-22): sin resultados en el portal ni GitHub con "darkstar"/"DarkstarUtilities"; item heredado del roadmap upstream 0.17/0.18. Eliminable cuando se audite el futuro.
 - [ ] **Cost calculator por crafting difficulty** — actualmente solo `normal`; ofrecer `expensive` con multiplicadores
 - [ ] **Scenario standalone sin ores** (item upstream 0.8.1) — start con grid, replicators y techs; útil para testing rápido
-- [ ] **Reactor chain "dark energy"** (posible mod separado) — reactores que producen energía de la nada, 5 tiers
+- [ ] **Reactor chain "dark energy"** (posible mod separado, IDEA REVISADA 2026-08-22 — diseño en `research/futures-dark-energy.md`, NO implementar sin pedir): 5 reactores que queman `dmrsa-dark-matter` (item HOY HUÉRFANO — nada lo produce ni consume) y generan la energía de la replicación (1/3/8/15/30 MW espejo de los replicadores, 1 reactor = 1 replicador del mismo tier). El scoop pasaría de item de research a MÁQUINA extractora (tenemut → dark matter). Reactores replicables (consistente con el refino original). Estructura a decidir cuando se retome: mod separado vs feature integrada; potencia 1:1 vs 2x excedente; extracción por scoop-máquina vs recipe base.
 
 ---
 
@@ -253,21 +263,22 @@ Objetivo: que DMR siga balanceado con cualquier modlist de overhaul (Bob's/Angel
 
 ---
 
-## 📋 Procedimiento de release
+## 📋 Procedimiento de release (pipeline real 2026-08, ver skill dmr-github-publishing)
 
-1. Branch `release/vX.Y.Z` desde `main`
-2. Bump `info.json` version + `changelog.txt`
-3. Build zip con la convención del repo (`dark-matter-replicators-reborn_X.Y.Z.zip`)
-4. Test runtime mínimo: SA puro, SA + Krastorio 2, base solo
-5. Tag + push
-6. Subir al mod portal (vía `factorio-mod` CLI si está configurado)
+1. Gate test en juego (Factorio 2.1, modlist real) → vaciar errores del log
+2. Bump `info.json` version + entrada ACUMULADA en `changelog.txt` (todo lo no publicado desde la última versión del portal — 4.0.0)
+3. Build zip con la convención (`dark-matter-replicators-reborn_X.Y.Z.zip`) + `check-no-private-data.py` (privacy CLEAN)
+4. Docs en una pasada: `mod-portal-description.md` actualizado (settings defaults, balance B2, features)
+5. GitHub push: clonar → sync → push (el source dir NO es repo git; el token de GitHub para Jaer985 vive en el `.env` del perfil Hermes — ver skill dmr-github-publishing)
+6. Subir al mod portal (upload del zip + descripción)
 
 ---
 
-## 🎯 Prioridad inmediata (post-3.6.0)
+## 🎯 Prioridad inmediata (estado 2026-08-22, al día del trabajo en curso)
 
-1. **Gate test 3.6.0 en juego** — probar el zip 3.6.0 con Space Age puro + Krastorio 2 en una save real; verificar tiers (chemical=3 antes de planetas, planetary=4), subgroups por categoría, idle animation, research difficulty/pack order settings
-2. **Publicar 3.6.0 al mod portal** — con la descripción actualizada (mod-portal-description.md) y el changelog acumulado
-3. **Ampliar fixtures del test suite** (`dmr-tests/`) — casos SA reales (foundry metallurgy, holmium, tungsten) y mods (Bob's cycles con tech)
-4. **v3.7.0+** — OmniMatter, cost calculator expensive, scenario standalone sin ores
-5. **Backlog técnico** — refactor data-final-fixes (3 PASS → archivos por concern), audit repltypes/target-mapper, documentar patrón orphan-tech
+1. **Gate test 4.2.0 en juego** — probar el zip 4.2.0 con la modlist real (138 mods): tiempos B2 (belt ~3s, centrifuge ~20s reales), kW 1/3/8/15/30 MW (red = el coste), máquinas ×1.5-3.5, planetarios 40/80 MW, refiner ×3/4MW, replicadores replicables ("Replication: Replicator 1"), research 10×tier (sin item_count), ores raros más caros, módulos productivity grises
+2. **Docs del portal** — actualizar `mod-portal-description.md` + README (balance B2, settings, features 4.1/4.2)
+3. **Publicar 4.2.0 al portal** — pipeline arriba (acumula 4.0.0→4.2.0: Quality Refiner + baseline Fix + B1-B5 + rebalance B2 + refino original)
+4. **Cierre B2** — validar spread de máquinas (1.5-3.5x) y planetarios con datos del gate test
+5. **Backlog técnico** — ampliar fixtures (SA reales), refactor data-final-fixes, audit repltypes/target-mapper, documentar patrón orphan-tech
+6. **Futuro** — Yuoki (cuando 2.1), PyMods, OmniMatter, Darkstar, cost expensive, scenario standalone, reactor chain "dark energy"

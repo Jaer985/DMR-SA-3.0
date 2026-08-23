@@ -80,7 +80,20 @@ local BASE_RESOURCE_COSTS = {
     ["oxide-asteroid-chunk"] = { dark_matter = 2.0, time = 2.0, tier = 4 },
     ["promethium-asteroid-chunk"] = { dark_matter = 10.0, time = 10.0, tier = 5 },
     ["promethium-ore"] = { dark_matter = 20.0, time = 20.0, tier = 5 },
-    ["promethium-science-pack"] = { dark_matter = 50.0, time = 50.0, tier = 5 }
+    ["promethium-science-pack"] = { dark_matter = 50.0, time = 50.0, tier = 5 },
+
+    -- v4.2 (dump audit B3): Bob's individual gem ores are ITEMS whose only
+    -- producing recipes are "-recycling" (excluded from build_recipe_map), so
+    -- the solver found no path and they were never replicated. bobores on the
+    -- 138-mod modlist generates bob-amethyst/diamond/emerald/ruby/sapphire/
+    -- topaz-ore (not bob-gem-ore anymore). Classify them directly: endgame
+    -- rare materials (tier 5).
+    ["bob-amethyst-ore"] = { dark_matter = 45.0, time = 5.0, tier = 5 },
+    ["bob-diamond-ore"] = { dark_matter = 45.0, time = 5.0, tier = 5 },
+    ["bob-emerald-ore"] = { dark_matter = 45.0, time = 5.0, tier = 5 },
+    ["bob-ruby-ore"] = { dark_matter = 45.0, time = 5.0, tier = 5 },
+    ["bob-sapphire-ore"] = { dark_matter = 45.0, time = 5.0, tier = 5 },
+    ["bob-topaz-ore"] = { dark_matter = 45.0, time = 5.0, tier = 5 },
 }
 
 -- Special fluids that have no crafting recipe (passive outputs of buildings
@@ -145,7 +158,84 @@ local MOD_ORE_TIERS = {
     { pattern = "ruby",     tier = 5 },
     { pattern = "sapphire", tier = 5 },
     { pattern = "topaz",    tier = 5 },
+    -- v4.2 (dump 4.1.0, Angel's full + planetaris): ores from overhaul mods
+    -- that the recipe-chain solver resolves to tier 1 (Angel's gives ores
+    -- crafting recipes — crushing/floatation — so they never hit the resource
+    -- fallback where MOD_ORE_TIERS applied). Angel's ores: ore1..6 are the six
+    -- base minerals (saphirite...jivolite), early-mid game. Specific metals
+    -- first (more specific patterns before generic "ore").
+    -- CRITICAL (Lua pitfall): `-` is a LAZY QUANTIFIER in Lua patterns, NOT a
+    -- literal hyphen — every hyphen must be `%-`. Unescaped patterns silently
+    -- fail to match (and let earlier simple patterns like "tin" win:
+    -- "angels-platinum-ore" contains "tin"!).
+    { pattern = "angels%-americium", tier = 5 },
+    { pattern = "angels%-curium",    tier = 5 },
+    { pattern = "angels%-neptunium", tier = 5 },
+    { pattern = "angels%-platinum",  tier = 5 },
+    { pattern = "angels%-chrome",    tier = 4 },
+    { pattern = "angels%-fluorite",  tier = 3 },
+    { pattern = "angels%-manganese", tier = 3 },
+    { pattern = "angels%-thorium",   tier = 4 },
+    { pattern = "angels%-ore",       tier = 2 },   -- angels-ore1..ore9 base minerals
+    { pattern = "planetaris%-raw%-emerald", tier = 5 },
+    { pattern = "planetaris%-raw%-ruby",    tier = 5 },
+    { pattern = "planetaris%-raw%-sapphire", tier = 5 },
+    { pattern = "planetaris%-raw",   tier = 4 },
+    { pattern = "planetaris%-metallic", tier = 2 },
+    { pattern = "sphalerite",       tier = 2 },   -- zinc sulfide ore
+    { pattern = "tetrahedrite",     tier = 2 },   -- copper antimony ore
+    { pattern = "vaterite",         tier = 3 },   -- calcium carbonate (planetaris)
+    { pattern = "gold%-ore",        tier = 4 },   -- generic gold ore (SE/planetaris)
+    -- v4.2 (dump 4.1.0): baseline NON-ore materials from overhaul mods that
+    -- have NO unlocking tech (Bob's/Angel's redirect the vanilla unlocks to
+    -- their own recipes — e.g. "plastics" descubre bob-plastic-pipe, not
+    -- plastic-bar). Without this they all fell to materials-1. Tier reflects
+    -- their progression in petrochem/biochem (3) or planet-level gating (4).
+    { pattern = "plastic%-bar",     tier = 3 },
+    { pattern = "resin",            tier = 3 },
+    { pattern = "rubber",           tier = 3 },
+    { pattern = "wax",              tier = 3 },
+    { pattern = "polysaccharides",  tier = 3 },
+    { pattern = "sulfuric%-acid",   tier = 3 },
+    { pattern = "ammoniacal%-solution", tier = 4 },
+    { pattern = "lava",             tier = 4 },
+    { pattern = "nitrogen",         tier = 3 },
+    { pattern = "blood",            tier = 4 },
+    { pattern = "lymph",            tier = 4 },
+    { pattern = "dirty%-lymph",     tier = 4 },
+    { pattern = "royal%-jelly",     tier = 4 },
+    { pattern = "%-sand$",          tier = 2 },   -- planetaris-sand / pure-sand
+    { pattern = "thermal%-water",   tier = 3 },
+    { pattern = "gas%-natural",     tier = 2 },
+    { pattern = "multi%-phase%-oil", tier = 3 },
+    { pattern = "condensates",      tier = 3 },
+    { pattern = "rpg_",             tier = 3 },   -- RPG system potions (no tech)
+    { pattern = "nitric%-acid",     tier = 3 },   -- mid-game acid (no same-mod tech)
 }
+
+-- v4.2: universal ore-tier override. MOD_ORE_TIERS used to apply ONLY in the
+-- resource fallback of initialize_base_resources() — ores that gained crafting
+-- recipes from overhaul mods (Angel's crushing/floatation, SE, planetaris)
+-- resolved through the recipe chain to tier 1 (dump 4.1.0: bob-tin-ore=1,
+-- bob-gold-ore=3, angels-ore1..6=1 with Angel's full). The material name is the
+-- ground truth for progression, so the override applies to ANY solve_cost
+-- result as a FLOOR. Returns nil when the name matches nothing.
+-- IMPORTANT: returns the LONGEST matching pattern, not the first — simple
+-- metal names are substrings of composite ones ("angels-platinum-ore"
+-- contains "tin"!); the most specific material wins.
+local function get_ore_tier_override(name)
+    local best_tier, best_len = nil, -1
+    for _, ore in ipairs(MOD_ORE_TIERS) do
+        if string.find(name, ore.pattern) then
+            local plen = #ore.pattern
+            if plen > best_len then
+                best_len = plen
+                best_tier = ore.tier
+            end
+        end
+    end
+    return best_tier
+end
 
 -- Scans all resource entities to discover dynamic base resource products (e.g. from mods)
 function CostSolver.initialize_base_resources()
@@ -181,6 +271,16 @@ function CostSolver.initialize_base_resources()
                                 break
                             end
                         end
+
+                        -- v4.2 refino (original-mod study): RAREZA de ore — modelo COMPLETO del
+                        -- original: cost = var("ore")(2) × (mining_time /
+                        -- base_density × 8). La densidad no está en los
+                        -- resource protos (el original la pasaba a mano por
+                        -- mod); inferimos density=4 (típica de ores normales)
+                        -- → cost = 2 × (mining_time/4 × 8) = mining_time × 4.
+                        -- Los ores raros (mining lento: thorium 2.5,
+                        -- tungsten 5) pagan mucho más que los comunes.
+                        base_cost = base_cost + (res.minable.mining_time or 0.75) * 4
 
                         BASE_RESOURCE_COSTS[name] = {
                             dark_matter = base_cost,
@@ -385,37 +485,33 @@ function CostSolver.solve_cost(name, visited, is_root, depth)
     -- 2. Check main memoization cache (stores raw, pre-penalty costs)
     if solved_cache[name] then
         local cached = solved_cache[name]
-        local method = helpers.get_startup_setting("dmrsa-cost-calculation-method", "Raw Ingredients (Flat)")
         local penalty = helpers.get_startup_setting("replication-penalty", 0.5)
-        if method == "Recursive Steps (Compounding)" then
-            -- Apply diminishing penalty based on caller depth.
-            -- Each extra recipe hop adds a smaller surcharge, preventing exponential blowup.
-            -- depth=0 (root): full penalty (dm_factor = 1 + penalty)
-            -- depth=1: half penalty (dm_factor = 1 + penalty/2)
-            -- depth=N: penalty/(N+1) — converges to 1.0 for very deep chains.
-            local dm_factor = 1.0 + (penalty / math.max(1, depth + 1))
-            local time_factor = 1.0 + (penalty * 0.5 / math.max(1, depth + 1))
-            return {
-                dark_matter = cached.dark_matter * dm_factor,
-                time = cached.time * time_factor,
-                tier = cached.tier
-            }
-        elseif is_root then
-            -- Raw Ingredients (Flat): penalty applied once at root
-            if method == "Raw Ingredients (Flat)" then
-                return {
-                    dark_matter = cached.dark_matter * (1.0 + penalty),
-                    time = cached.time * (1.0 + penalty * 0.5),
-                    tier = cached.tier
-                }
-            end
-        end
-        return cached
+        -- v4.2 refino (original-mod study): el penalty del ORIGINAL es +0.5
+        -- FIJO por item (suma, no multiplicador). El multiplicador decayente
+        -- inflaba los items de cadena larga y contradecía la descripción
+        -- ("added to the cost"). Ahora: dark_matter += penalty, time +=
+        -- penalty×0.5, en ambos métodos.
+        return {
+            dark_matter = cached.dark_matter + penalty,
+            time = cached.time + penalty * 0.5,
+            tier = cached.tier
+        }
     end
 
     -- 3. Base resources check
     if BASE_RESOURCE_COSTS[name] then
-        return BASE_RESOURCE_COSTS[name]
+        local base = BASE_RESOURCE_COSTS[name]
+        -- v4.2: ore-tier override as floor (a statically-mapped ore that got a
+        -- low tier before the table was extended must respect the material map).
+        local ore_override = get_ore_tier_override(name)
+        if ore_override and ore_override > (base.tier or 1) then
+            return {
+                dark_matter = math.max(base.dark_matter or 1, 1.5 * (ore_override ^ 1.5)),
+                time = base.time,
+                tier = ore_override
+            }
+        end
+        return base
     end
 
     -- 3b. Fluid tier overrides (for fluids with no crafting recipe)
@@ -439,6 +535,11 @@ function CostSolver.solve_cost(name, visited, is_root, depth)
             cycle_tier = CostSolver.get_tier_from_tech(cycle_tech)
         end
         local fallback = { dark_matter = 5.0, time = 2.0, tier = cycle_tier }
+        local ore_override = get_ore_tier_override(name)
+        if ore_override and ore_override > fallback.tier then
+            fallback.tier = ore_override
+            fallback.dark_matter = math.max(fallback.dark_matter, 1.5 * (ore_override ^ 1.5))
+        end
         cycle_cache[name] = fallback
         return fallback
     end
@@ -459,6 +560,11 @@ function CostSolver.solve_cost(name, visited, is_root, depth)
             unknown_tier = CostSolver.get_tier_from_tech(unknown_tech)
         end
         local fallback = { dark_matter = 10.0, time = 3.0, tier = unknown_tier }
+        local ore_override = get_ore_tier_override(name)
+        if ore_override and ore_override > fallback.tier then
+            fallback.tier = ore_override
+            fallback.dark_matter = math.max(fallback.dark_matter, 1.5 * (ore_override ^ 1.5))
+        end
         solved_cache[name] = fallback
         return fallback
     end
@@ -472,6 +578,11 @@ function CostSolver.solve_cost(name, visited, is_root, depth)
     if not ingredients or #ingredients == 0 then
         visited[name] = nil
         local fallback = { dark_matter = 1.0, time = 1.0, tier = 1 }
+        local ore_override = get_ore_tier_override(name)
+        if ore_override then
+            fallback.tier = math.max(fallback.tier, ore_override)
+            fallback.dark_matter = math.max(fallback.dark_matter, 1.5 * (ore_override ^ 1.5))
+        end
         solved_cache[name] = fallback
         return fallback
     end
@@ -608,6 +719,17 @@ function CostSolver.solve_cost(name, visited, is_root, depth)
     -- Clean up cycle tracker
     visited[name] = nil
 
+    -- v4.2: ore-tier override as a floor on the recipe-chain result. The
+    -- recipe chain (crushing/floatation/processing with Angel's) can resolve
+    -- an ore to tier 1 even when the material is mid/late game; the name map
+    -- is the ground truth. Also scales cost so deep ores aren't cheap.
+    local ore_override = get_ore_tier_override(name)
+    if ore_override and ore_override > max_tier then
+        max_tier = ore_override
+        local min_cost = 1.5 * (ore_override ^ 1.5)
+        if final_dm < min_cost then final_dm = min_cost end
+    end
+
     -- Cache the RAW cost (before any penalty) for reuse across different call contexts
     local raw_result = {
         dark_matter = final_dm,
@@ -616,38 +738,16 @@ function CostSolver.solve_cost(name, visited, is_root, depth)
     }
     solved_cache[name] = raw_result
 
-    -- Apply penalty based on method and call depth
-    local method = helpers.get_startup_setting("dmrsa-cost-calculation-method", "Raw Ingredients (Flat)")
+    -- v4.2 refino (original-mod study): penalty FIJO +0.5 (suma) en todos
+    -- los casos — el multiplicador decayente inflaba cadenas largas. El
+    -- setting dmrsa-cost-calculation-method queda SIN EFECTO (igual en
+    -- ambas ramas; descripción actualizada en el locale).
     local penalty = helpers.get_startup_setting("replication-penalty", 0.5)
-
-    if method == "Recursive Steps (Compounding)" then
-        -- Apply penalty with diminishing returns based on depth.
-        -- Deeper recipe chains pay a smaller per-step surcharge, preventing
-        -- exponential blowup while still making complex items more expensive.
-        -- depth=0 (root): full penalty; depth=1: penalty/2; depth=2: penalty/3; etc.
-        local dm_factor = 1.0 + (penalty / math.max(1, depth + 1))
-        local time_factor = 1.0 + (penalty * 0.5 / math.max(1, depth + 1))
-        local result = {
-            dark_matter = final_dm * dm_factor,
-            time = final_time * time_factor,
-            tier = max_tier
-        }
-        -- NOTE: solved_cache intentionally stores the RAW (unpenalized) value.
-        -- Penalty is applied at return time based on the caller's depth,
-        -- preventing compounding of already-compounded values at different depths.
-        return result
-    end
-
-    -- Raw Ingredients (Flat): penalty applied only at root
-    if is_root then
-        return {
-            dark_matter = final_dm * (1.0 + penalty),
-            time = final_time * (1.0 + penalty * 0.5),
-            tier = max_tier
-        }
-    end
-
-    return raw_result
+    return {
+        dark_matter = final_dm + penalty,
+        time = final_time + penalty * 0.5,
+        tier = max_tier
+    }
 end
 
 CostSolver.recipe_map = recipe_map

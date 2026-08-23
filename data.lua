@@ -13,6 +13,7 @@ end
 -- Load modular prototypes
 safe_require("prototypes.items.dark-matter")
 safe_require("prototypes.entities.replicators")
+safe_require("prototypes.entities.refiner")
 safe_require("prototypes.recipes.base-recipes")
 safe_require("prototypes.technologies.technologies")
 

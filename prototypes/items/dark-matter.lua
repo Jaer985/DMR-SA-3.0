@@ -62,6 +62,24 @@ for _, cat in ipairs(category_subgroups) do
 end
 
 data:extend({
+    -- Tenemut (raw material, tool). Defined HERE (items file, loaded FIRST by
+    -- data.lua) — v4.2 fix (gate-test dump 2026-08-23): it previously lived in
+    -- prototypes/raw-resources.lua which loads AFTER technologies.lua, so
+    -- make_research_unit ran before data.raw.tool["dmrsa-tenemut"] existed →
+    -- helpers.item_exists returned false → the hardened fallback silently
+    -- substituted matter-conduit for the tier-1 materials pack (dump showed
+    -- replication-materials-1 researching with 30× Nanophase Conduit).
+    {
+        type = "tool",
+        name = gprefix .. "tenemut",
+        icon = "__dark-matter-replicators-reborn__/graphics/icons/tenemut.png",
+        icon_size = 64,
+        subgroup = "raw-resource",
+        order = "f[tenemut]",
+        stack_size = 200,
+        durability = 1
+    },
+
     -- Pure Dark Matter (High-stack universal input item)
     {
         type = "item",

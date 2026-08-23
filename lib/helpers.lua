@@ -55,22 +55,26 @@ end
 --   cost       = research repetition multiplier (replaces replresearch-item-multiplier)
 --   time       = research time per tech in seconds (replaces replresearch-item-time)
 --   cap        = max replication recipe crafting time (the old hard 600s cap)
+--   replic_mult= replication recipe time multiplier (v4.2: difficulty also
+--                scales the actual replication times: Easy 1.0 / Medium 1.5 /
+--                High 2.0 / Very Hard 3.0)
 -- Easy (Fast) reads the player's replresearch-* settings (historical default
 -- 25 cost / 5s time / 600s cap). Harder levels use fixed values from the table.
 function helpers.get_research_difficulty_values()
     local difficulty = helpers.get_startup_setting("dmrsa-research-difficulty", "Easy (Fast)")
     if difficulty == "Medium" then
-        return { cost = 50, time = 15, cap = 1000 }
+        return { cost = 50, time = 15, cap = 1000, replic_mult = 1.5 }
     elseif difficulty == "High" then
-        return { cost = 100, time = 30, cap = 1800 }
+        return { cost = 100, time = 30, cap = 1800, replic_mult = 2.0 }
     elseif difficulty == "Very Hard" then
-        return { cost = 200, time = 45, cap = 3200 }
+        return { cost = 200, time = 45, cap = 3200, replic_mult = 3.0 }
     end
     -- Easy (Fast): historical behavior preserved, player settings respected
     return {
         cost = helpers.get_startup_setting("replresearch-item-multiplier", 25),
         time = helpers.get_startup_setting("replresearch-item-time", 5),
         cap = 600,
+        replic_mult = 1.0
     }
 end
 

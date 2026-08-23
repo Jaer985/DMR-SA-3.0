@@ -48,6 +48,18 @@ for _, name in ipairs(TARGET_BLACKLIST) do
     blacklist_set[name] = true
 end
 
+-- v4.2 refino (original-mod study): los replicadores son replicables — el
+-- original los declara repltech_recipe(device3-5, upgrade=true). El mirror
+-- forzará su tier 1..5 (REPLICATOR_TIER) para que cada uno quede en su
+-- propia tech espejo.
+local DMR_REPLICATOR_WHITELIST = {
+    [gprefix .. "replicator-1"] = true,
+    [gprefix .. "replicator-2"] = true,
+    [gprefix .. "replicator-3"] = true,
+    [gprefix .. "replicator-4"] = true,
+    [gprefix .. "replicator-5"] = true,
+}
+
 -- Helper: check if a name matches the filled-barrel pattern.
 -- Factorio generates filled barrels dynamically as "fill-<fluid>-barrel"
 -- (and some mods use "<fluid>-barrel"). The empty barrel itself is "barrel".
@@ -247,21 +259,29 @@ local VEHICLE_REGISTRIES = {
     "car", "tank", "spider-vehicle", "locomotive",
     "cargo-wagon", "fluid-wagon", "artillery-wagon"
 }
-local COMBAT_CAPSULE_PATTERNS = {
-    "grenade", "capsule", "explosives", "poison", "slowdown",
-    "defender", "distractor", "destroyer", "fire", "laser-robot"
-}
+-- v4.2 (audit B3): Bob's individual gem ores are ITEMS whose only producing
+-- recipe is "-recycling" (excluded from the recipe map) — they fail the
+-- phantom-item eligibility rule but are legit endgame rare materials.
+local BOB_GEM_ORES = {}
+for _, n in ipairs({
+    "bob-amethyst-ore", "bob-diamond-ore", "bob-emerald-ore",
+    "bob-ruby-ore", "bob-sapphire-ore", "bob-topaz-ore",
+}) do
+    BOB_GEM_ORES[n] = true
+end
 local function is_v4_excluded(name, type_name)
     -- 1. Weapons (gun) and armor
     if type_name == "gun" or type_name == "armor" then
         return true
     end
-    -- 2. Combat capsules (grenades, poison, combat robots, cliff explosives)
-    if type_name == "capsule" then
-        for _, pat in ipairs(COMBAT_CAPSULE_PATTERNS) do
-            if string.find(name, pat) then return true end
-        end
-    end
+    -- v4.2 (2026-08-22, decisión del usuario en B5): las cápsulas de combate
+    -- (granadas, poison, slowdown, cliff-explosives, defender/distractor/
+    -- destroyer-capsule, flamethrower) SÍ se replican, en su tier como
+    -- vanilla (el mirror las pone en su tech original, tipicamente military)
+    -- y no antes. Antes de v4.2 se excluían como "1-solo-uso".
+    -- (El bloque COMBAT_CAPSULE_PATTERNS se elimina; las minas siguen
+    -- replicandose igual.)
+
     -- 3. Vehicles / rolling stock (their item form is item-with-entity-data)
     for _, reg_name in ipairs(VEHICLE_REGISTRIES) do
         if data.raw[reg_name] and data.raw[reg_name][name] then
@@ -272,8 +292,11 @@ local function is_v4_excluded(name, type_name)
     if string.sub(name, 1, 12) == "bob-vehicle-" then
         return true
     end
-    -- 5. Personal equipment EXCEPT solar panels and batteries (mass-use kept)
-    if string.find(name, "%-equipment$") then
+    -- 5. Personal equipment EXCEPT solar panels and batteries (mass-use kept).
+    -- v4.2 (dump audit): Bob's equipment tiers end in "-N" (bob-exoskeleton-
+    -- equipment-2...), so the plain "%-equipment$" pattern never matched them
+    -- and 13 personal equipment items were replicating. Match versioned too.
+    if string.find(name, "%-equipment$") or string.find(name, "%-equipment%-%d+$") then
         if string.find(name, "solar") or string.find(name, "battery") then
             return false
         end
@@ -312,6 +335,20 @@ local function is_v4_excluded(name, type_name)
     for _, s in ipairs(YUOKI_EXCLUDED) do
         if name == s then return true end
     end
+    -- v4.2 (dump audit 2026-08-22): Bob's combat robots are type "item"
+    -- (vanilla uses capsules, which the capsule rule catches), so they slipped
+    -- past the combat-capsule exclusion. Also the factorissimo network
+    -- connector (red-wire utility, not a production item) and the spidertron
+    -- cannon (a weapon).
+    local V42_EXCLUDED = {
+        -- (las minas/cápsulas/robots de combate se REVIERTEN: el usuario decide
+        -- que se replican en su tier; se quitan de esta lista en 2026-08-22)
+        "factory-circuit-connector",
+        "bob-spidertron-cannon",
+    }
+    for _, s in ipairs(V42_EXCLUDED) do
+        if name == s then return true end
+    end
     return false
 end
 
@@ -335,8 +372,13 @@ function TargetMapper.get_potential_replication_targets()
                 -- EXCEPTION (v4.0): dmrsa-tenemut IS replicable — but only at
                 -- tier 5 ("Mastery of Dark Matter"). The mirror generator
                 -- forces its tier to 5, so it lands in the tier-5 baseline.
+                -- EXCEPTION (v4.2 refino, original-mod study): los
+                -- dmrsa-replicator-1..5 también se replican (el original los
+                -- hace repltech_recipe(device3-5, upgrade=true)) — el jugador
+                -- duplica sus replicadores en vez de fabricarlos a mano.
                 if string.sub(name, 1, string.len(gprefix)) == gprefix
-                   and name ~= gprefix .. "tenemut" then
+                   and name ~= gprefix .. "tenemut"
+                   and not DMR_REPLICATOR_WHITELIST[name] then
                     is_valid = false
                 end
 
@@ -362,7 +404,12 @@ function TargetMapper.get_potential_replication_targets()
                 -- legitimate replication targets. This catches mod internals
                 -- (factorissimo factory-*, hidden robots), drop-only items,
                 -- and any future mod's phantom items without per-mod lists.
-                if is_valid and not is_eligible(name) then
+                -- v4.2 (audit B3): Bob's individual gem ores are items whose
+                -- only producing recipe is "-recycling" (excluded from the
+                -- recipe map) — they fail this rule but ARE legit rare
+                -- materials, so they force through.
+                if is_valid and not is_eligible(name)
+                   and not BOB_GEM_ORES[name] then
                     is_valid = false
                 end
 

@@ -72,16 +72,6 @@ local resource = {
 data:extend(
 {
 	{
-		type = "tool",
-		name = gprefix.."tenemut",
-		icon = "__dark-matter-replicators-reborn__/graphics/icons/tenemut.png",
-		icon_size = 64,
-		subgroup = "raw-resource",
-		order = "f[tenemut]",
-		stack_size = 200,
-		durability = 1
-	},
-	{
 		type = "autoplace-control",
 		name = gprefix.."tenemut",
 		richness = true,

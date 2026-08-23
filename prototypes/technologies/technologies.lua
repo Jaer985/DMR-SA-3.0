@@ -13,6 +13,17 @@ local function make_research_unit(count, packs, time)
     if #ingredients == 0 then
         if helpers.item_exists(gprefix .. "tenemut") then
             table.insert(ingredients, { gprefix .. "tenemut", 1 })
+        else
+            -- v4.2 (dump 4.1.0): the tier-1 material pack (tenemut) is a TOOL
+            -- prototype — if item_exists misses it for ANY reason, don't leave
+            -- the tech with an EMPTY ingredient list (it rendered "no cost").
+            -- Fall back to any existing DMR material.
+            for _, mat in ipairs({ "matter-conduit", "dark-matter-transducer", "dark-matter-scoop" }) do
+                if helpers.item_exists(gprefix .. mat) then
+                    table.insert(ingredients, { gprefix .. mat, 1 })
+                    break
+                end
+            end
         end
     end
     -- Apply research difficulty multipliers (Medium/High) to ALL static techs
@@ -192,6 +203,16 @@ for _, def in ipairs(materials_defs) do
     table.insert(tech_list, {
         type = "technology",
         name = gprefix .. "replication-materials-" .. def.tier,
+        -- v4.2: explicit localised_name from the shared template
+        -- ("technology-name.dmrsa-materials-tech" = "Replication: Raw Materials
+        -- (Tier __1__)"). Previously the techs relied on per-tier locale keys
+        -- (technology-name.dmrsa-replication-materials-N) — a missing key in
+        -- any language rendered the raw key in the research tree.
+        -- v4.2 FIX (gate test): prototype localised strings in Factorio 2.x
+        -- REJECT numeric parameters at load ("Value must be a string at
+        -- ...localised_name[1]") — numbers are runtime-only. tostring() the
+        -- tier so the parameter slot is a string.
+        localised_name = { "technology-name.dmrsa-materials-tech", tostring(def.tier) },
         icon = "__dark-matter-replicators-reborn__/graphics/icons/matter-conduit.png",
         icon_size = 64,
         effects = {},  -- filled in data-final-fixes with baseline recipes

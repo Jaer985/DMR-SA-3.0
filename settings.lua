@@ -69,22 +69,6 @@ data:extend({
 		minimum_value = 0.001
 	},
 	{
-		name = "replstats-energy-base",
-		type = "double-setting",
-		order = "1-2-1",
-		setting_type = "startup",
-		default_value = 256,
-		minimum_value = 0.001
-	},
-	{
-		name = "replstats-energy-factor",
-		type = "double-setting",
-		order = "1-2-2",
-		setting_type = "startup",
-		default_value = 2.5,
-		minimum_value = 0.001
-	},
-	{
 		name = "replstats-pollution-base",
 		type = "double-setting",
 		order = "1-3-1",
@@ -214,19 +198,19 @@ data:extend({
 		minimum_value = 0.1,
 	},
 	{
-		name = "dmrsa-cost-calculation-method",
-		type = "string-setting",
-		order = "5-2",
-		setting_type = "startup",
-		allowed_values = { "Recursive Steps (Compounding)", "Raw Ingredients (Flat)" },
-		default_value = "Raw Ingredients (Flat)",
-	},
-	{
 		name = "dmrsa-use-machine-efficiency",
 		type = "bool-setting",
 		order = "5-3",
 		setting_type = "startup",
 		default_value = true,
+	},
+	{
+		name = "dmrsa-replicator-quality",
+		type = "string-setting",
+		order = "5-4",
+		setting_type = "startup",
+		allowed_values = { "Normal only", "Allow quality" },
+		default_value = "Normal only",
 	},
 })
 

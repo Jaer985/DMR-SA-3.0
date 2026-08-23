@@ -100,7 +100,9 @@ local function make_planetary_replicator(name_suffix, speed, power_mw, tint_colo
         },
         
         module_slots = 3,
-        allowed_effects = { "consumption", "speed", "productivity", "quality", "pollution" }
+        -- v4.2 refino (original-mod study): sin "productivity" (0-ingredient
+        -- recipes = duplicación gratis).
+        allowed_effects = { "consumption", "speed", "quality", "pollution" }
     }
 
     -- Apply planetary restrictions if Space Age expansion is loaded
@@ -154,10 +156,14 @@ end
 -- Define the 4 planetary machines
 if mods["space-age"] then
     -- 1. Vulcanus (Geothermal): Orange/Red tint, metallurgy speedup
+    -- v4.2 (B2): 400MW → 40MW — the old 400-800MW was tuned for 600s
+    -- replication times (200s×400MW = 80GJ/recipe, unplayable). With the
+    -- rebalanced band model (8-48s nominal) the planets stay the most
+    -- expensive machines in the game at ~0.1-0.6 GJ/recipe.
     make_planetary_replicator(
         "vulcanus", 
         3.0, 
-        400, 
+        40, 
         { r = 1.0, g = 0.35, b = 0.15, a = 1.0 },
         { { property = "gravity", min = 0.5 } } -- restricts to solid surfaces
     )
@@ -166,7 +172,7 @@ if mods["space-age"] then
     make_planetary_replicator(
         "fulgora", 
         3.0, 
-        400, 
+        40, 
         { r = 0.45, g = 0.15, b = 0.9, a = 1.0 },
         { { property = "gravity", min = 0.5 } }
     )
@@ -175,16 +181,17 @@ if mods["space-age"] then
     make_planetary_replicator(
         "gleba", 
         3.0, 
-        400, 
+        40, 
         { r = 0.25, g = 0.85, b = 0.35, a = 1.0 },
         { { property = "gravity", min = 0.5 } }
     )
 
     -- 4. Aquilo (Cryogenic): Icy Blue tint, ultra superconductive speed
+    -- (v4.2 B2: 800MW → 80MW, see above)
     make_planetary_replicator(
         "aquilo", 
         5.0, 
-        800, 
+        80, 
         { r = 0.35, g = 0.75, b = 1.0, a = 1.0 },
         { { property = "gravity", min = 0.5 } }
     )

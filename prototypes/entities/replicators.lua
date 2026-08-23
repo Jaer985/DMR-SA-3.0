@@ -3,9 +3,14 @@ local gprefix = "dmrsa-"
 
 -- Retrieve stats from settings with robust short-circuit evaluation
 local speed_base = helpers.get_startup_setting("replstats-speed-base", 1.0)
-local speed_factor = helpers.get_startup_setting("replstats-speed-factor", 2.0)
-local energy_base = helpers.get_startup_setting("replstats-energy-base", 256.0) -- in kW
-local energy_factor = helpers.get_startup_setting("replstats-energy-factor", 2.5)
+-- v4.2 (B2): speed_factor 2.0 → 1.6 — the old 1/2/4/8/16x ramp crushed
+-- real replication times to 1.6-12s across ALL tiers (t5 at 16x = 0.2s for
+-- cheap items). 1.6 → 1/1.6/2.56/4.1/6.55x keeps the progressive feel but
+-- leaves ~2-3x more real time per recipe (user: "cada replicator aumenta la
+-- velocidad, es muy rápido").
+local speed_factor = helpers.get_startup_setting("replstats-speed-factor", 1.6)
+local energy_base = helpers.get_startup_setting("replstats-energy-base", 256.0) -- in kW (legacy since v4.2 B2)
+local energy_factor = helpers.get_startup_setting("replstats-energy-factor", 2.5) -- legacy
 local pollution_base = helpers.get_startup_setting("replstats-pollution-base", 1.0)
 local pollution_factor = helpers.get_startup_setting("replstats-pollution-factor", 1.75)
 local size_base = helpers.get_startup_setting("replstats-size-base", 2.0)
@@ -13,12 +18,21 @@ local size_addend = helpers.get_startup_setting("replstats-size-addend", 0.0)
 local module_slots_base = helpers.get_startup_setting("replstats-modules-base", 1.0)
 local module_slots_addend = helpers.get_startup_setting("replstats-modules-addend", 0.5)
 
+-- v4.2 (B2, user-approved): PER-TIER POWER TABLE (MW) — the cost shift from
+-- time to POWER needs a strong monotonic ramp: 1 / 3 / 8 / 15 / 30 MW.
+-- v4.2 refinement (user: "si es más lento debe ser más económico"): the 1/4/
+-- 16/40/100 MW ramp was tuned for speed 1/2/4/8/16x — with speed_factor 1.6
+-- (1/1.6/2.56/4.1/6.55x) the same energy per recipe lands at LOWER power:
+-- slower replication, same ~MJ per recipe, more accessible grid (30MW t5).
+-- replstats-energy-base / replstats-energy-factor settings are legacy.
+local PER_TIER_MW = { [1] = 1, [2] = 3, [3] = 8, [4] = 15, [5] = 30 }
+
 -- We will generate 5 tiers of Replicators
 for tier = 1, 5 do
     -- Calculations for stats
     local speed = speed_base * (speed_factor ^ (tier - 1))
-    local energy_kw = energy_base * (energy_factor ^ (tier - 1))
-    local energy_usage_str = energy_kw .. "kW"
+    -- v4.2 (B2): per-tier power table (1/4/16/40/100 MW), see PER_TIER_MW above.
+    local energy_usage_str = PER_TIER_MW[tier] .. "MW"
     local pollution = pollution_base * (pollution_factor ^ (tier - 1))
     
     -- Hitbox calculations
@@ -156,7 +170,11 @@ for tier = 1, 5 do
         },
         
         module_slots = module_slots,
-        allowed_effects = { "consumption", "speed", "productivity", "quality", "pollution" }
+        -- v4.2 refino (original-mod study): allowed_effects sin "productivity" — con
+                -- recipes de 0 ingredientes la productividad es duplicación GRATIS
+                -- (el exploit existe en el original; lo corregimos). La calidad sale
+                -- por el Refinador (sin modules, probabilidad = balance).
+                allowed_effects = { "consumption", "speed", "quality", "pollution" },
     }
 
     -- Space platform and Space Exploration compatibility
